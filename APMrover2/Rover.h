@@ -560,6 +560,9 @@ private:
     bool motor_active();
     void update_home();
     void accel_cal_update(void);
+    // MARCO
+    bool update_arming_checks(void);
+    // End MARCO
     void nav_set_yaw_speed();
     bool in_stationary_loiter(void);
     void set_loiter_active(const AP_Mission::Mission_Command& cmd);

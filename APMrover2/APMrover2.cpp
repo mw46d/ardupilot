@@ -103,6 +103,10 @@ void Rover::setup()
 
     in_auto_reverse = false;
     
+    // ??? MARCO
+    AP_Notify::flags.failsafe_battery = false;
+    // End MARCO
+
     rssi.init();
 
     init_ardupilot();
@@ -304,6 +308,21 @@ void Rover::update_aux(void)
     SRV_Channels::enable_aux_servos();
 }
 
+// MARCO
+// performs pre-arm checks. expects to be called at 1hz.
+bool Rover::update_arming_checks(void) {
+    // perform pre-arm checks & display failures every 30 seconds
+    static uint8_t pre_arm_display_counter = PREARM_DISPLAY_PERIOD/2;
+    pre_arm_display_counter++;
+    bool display_fail = false;
+    if (pre_arm_display_counter >= PREARM_DISPLAY_PERIOD) {
+        display_fail = true;
+        pre_arm_display_counter = 0;
+    }
+
+    return arming.pre_arm_checks(display_fail);
+}
+
 /*
   once a second events
  */
@@ -324,7 +343,10 @@ void Rover::one_second_loop(void)
     update_aux();
 
     // update notify flags
-    AP_Notify::flags.pre_arm_check = arming.pre_arm_checks(false);
+    // MARCO
+    // AP_Notify::flags.pre_arm_check = arming.pre_arm_checks(false);
+    AP_Notify::flags.pre_arm_check = update_arming_checks();
+    // End MARCO
     AP_Notify::flags.pre_arm_gps_check = true;
     AP_Notify::flags.armed = arming.is_armed() || arming.arming_required() == AP_Arming::NO;
 
