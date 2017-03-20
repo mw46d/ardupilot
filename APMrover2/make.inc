@@ -48,3 +48,4 @@ LIBRARIES += AP_RPM
 LIBRARIES += AP_Arming
 LIBRARIES += AP_Stats
 LIBRARIES += AP_Beacon
+# LIBRARIES += AP_Wheelspeed
