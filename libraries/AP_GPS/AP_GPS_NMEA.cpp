@@ -306,7 +306,10 @@ bool AP_GPS_NMEA::_term_complete()
                     make_gps_time(_new_date, _new_time * 10);
                     state.last_gps_time_ms = now;
                     // To-Do: add support for proper reporting of 2D and 3D fix
-                    state.status           = AP_GPS::GPS_OK_FIX_3D;
+                    // MARCO no status in this sentences
+                    if (state.status < AP_GPS::GPS_OK_FIX_3D) {
+                        state.status       = AP_GPS::GPS_OK_FIX_3D;
+                    }
                     fill_3d_velocity();
                     break;
                 case _GPS_SENTENCE_GGA:
@@ -316,8 +319,25 @@ bool AP_GPS_NMEA::_term_complete()
                     state.location.lng  = _new_longitude;
                     state.num_sats      = _new_satellite_count;
                     state.hdop          = _new_hdop;
-                    // To-Do: add support for proper reporting of 2D and 3D fix
-                    state.status        = AP_GPS::GPS_OK_FIX_3D;
+                    // MARCO
+                    switch (_new_status) {
+                    case 1:
+                    case 3:
+                        state.status        = AP_GPS::GPS_OK_FIX_3D;
+                        break;
+                    case 2:
+                        state.status    = AP_GPS::GPS_OK_FIX_3D_DGPS;
+                        break;
+                    case 4:
+                        state.status    = AP_GPS::GPS_OK_FIX_3D_RTK_FIXED;
+                        break;
+                    case 5:
+                        state.status    = AP_GPS::GPS_OK_FIX_3D_RTK_FLOAT;
+                        break;
+                    default:
+                        state.status    = AP_GPS::NO_FIX;
+                    }
+                    // End MARCO
                     break;
                 case _GPS_SENTENCE_VTG:
                     _last_VTG_ms = now;
@@ -380,6 +400,9 @@ bool AP_GPS_NMEA::_term_complete()
             _gps_data_good = _term[0] == 'A';
             break;
         case _GPS_SENTENCE_GGA + 6: // Fix data (GGA)
+            // MARCO
+            _new_status = atol(_term);
+            // End MARCO
             _gps_data_good = _term[0] > '0';
             break;
         case _GPS_SENTENCE_VTG + 9: // validity (VTG) (we may not see this field)

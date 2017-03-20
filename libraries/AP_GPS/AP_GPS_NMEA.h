@@ -60,6 +60,9 @@ public:
     /// accordingly.
     bool        read();
 
+    // MARCO
+    AP_GPS::GPS_Status highest_supported_status(void) { return AP_GPS::GPS_OK_FIX_3D_RTK_FIXED; }
+
 	static bool _detect(struct NMEA_detect_state &state, uint8_t data);
 
 private:
@@ -137,6 +140,8 @@ private:
     int32_t _new_course;                                        ///< course parsed from a term
     uint16_t _new_hdop;                                                 ///< HDOP parsed from a term
     uint8_t _new_satellite_count;                       ///< satellite count parsed from a term
+    // MARCO
+    uint8_t _new_status;                                ///< status parsed from a term
 
     uint32_t _last_RMC_ms = 0;
     uint32_t _last_GGA_ms = 0;
