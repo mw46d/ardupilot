@@ -1,5 +1,9 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/unistd.h>
+#include <fcntl.h>
 
 #include <drivers/drv_hrt.h>
 
@@ -14,6 +18,20 @@ namespace AP_HAL {
 
 void init()
 {
+    // * MARCO
+    int devNull = open("/dev/null", O_WRONLY);
+    if (devNull == -1) {
+        exit(1);
+    }
+
+    if (dup2(devNull, STDOUT_FILENO) == -1) {
+        exit(1);
+    }
+
+    if (dup2(devNull, STDERR_FILENO) == -1) {
+        exit(1);
+    }
+    // */
 }
 
 void panic(const char *errormsg, ...)

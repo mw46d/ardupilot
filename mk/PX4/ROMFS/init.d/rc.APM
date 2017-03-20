@@ -88,7 +88,7 @@ then
 else
     echo "failed to start mtd driver"
     echo "failed to start mtd driver" >> $logfile
-    sh /etc/init.d/rc.error           
+    sh /etc/init.d/rc.error
 fi
 
 if mtd readtest /fs/mtd
@@ -97,7 +97,7 @@ then
 else
     echo "failed to read mtd"
     echo "failed to read mtd" >> $logfile
-    sh /etc/init.d/rc.error           
+    sh /etc/init.d/rc.error
 fi
 
 echo Starting ArduPilot
@@ -108,4 +108,10 @@ else
     sh /etc/init.d/rc.error
 fi
 
+ls -l /dev >> $logfile
 echo "rc.APM finished"
+
+echo "Exiting from nsh shell"
+echo "Exiting from nsh shell" >> $logfile
+exit
+
