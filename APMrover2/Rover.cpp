@@ -44,7 +44,7 @@ Rover::Rover(void) :
 #endif
     control_mode(INITIALISING),
     ground_start_count(20),
-    throttle(500),
+    throttle(0),
 #if FRSKY_TELEM_ENABLED == ENABLED
     frsky_telemetry(ahrs, battery, sonar),
 #endif

@@ -481,10 +481,10 @@ void Rover::update_current_mode(void)
         case Guided_WP:
             if (rtl_complete || verify_RTL()) {
                 // we have reached destination so stop where we are
-                if (SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) != g.throttle_min.get()) {
+                if (SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) != g.throttle_min * 10) {
                     gcs_send_mission_item_reached_message(0);
                 }
-                SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min.get());
+                SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min * 10);
                 SRV_Channels::set_output_scaled(SRV_Channel::k_steering,0);
                 lateral_acceleration = 0;
             } else {
@@ -492,7 +492,7 @@ void Rover::update_current_mode(void)
                 calc_nav_steer();
                 calc_throttle(g.speed_cruise);
                 Log_Write_GuidedTarget(guided_mode, Vector3f(guided_WP.lat, guided_WP.lng, guided_WP.alt),
-                                       Vector3f(g.speed_cruise, SRV_Channels::get_output_scaled(SRV_Channel::k_throttle), 0));
+                                       Vector3f(g.speed_cruise, SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) / 10, 0));
             }
             break;
 
@@ -582,7 +582,7 @@ void Rover::update_navigation()
         calc_lateral_acceleration();
         calc_nav_steer();
         if (verify_RTL()) {
-            SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min.get());
+            SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min * 10);
             set_mode(HOLD);
         }
         break;
@@ -599,7 +599,7 @@ void Rover::update_navigation()
             calc_nav_steer();
             if (rtl_complete || verify_RTL()) {
                 // we have reached destination so stop where we are
-                SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min.get());
+                SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min * 10);
                 SRV_Channels::set_output_scaled(SRV_Channel::k_steering,0);
                 lateral_acceleration = 0;
             }

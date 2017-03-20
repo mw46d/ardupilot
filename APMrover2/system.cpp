@@ -283,7 +283,8 @@ void Rover::set_mode(enum mode mode)
 
     control_mode = mode;
     throttle_last = 0;
-    throttle = 500;
+    // MARCO throttle = 500;
+    throttle = 0;
     if (!in_auto_reverse) {
         set_reverse(false);
     }

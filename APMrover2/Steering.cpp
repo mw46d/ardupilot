@@ -103,7 +103,7 @@ void Rover::calc_throttle(float target_speed) {
     // If not autostarting OR we are loitering at a waypoint
     // then set the throttle to minimum
     if (!auto_check_trigger() || in_stationary_loiter()) {
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, g.throttle_min.get());
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, g.throttle_min * 10);
         // Stop rotation in case of loitering and skid steering
         if (g.skid_steer_out) {
             SRV_Channels::set_output_scaled(SRV_Channel::k_steering, 0);
@@ -111,8 +111,10 @@ void Rover::calc_throttle(float target_speed) {
         return;
     }
 
-    float throttle_base = (fabsf(target_speed) / g.speed_cruise) * g.throttle_cruise;
+    /* MARCO
+    float throttle_base = (fabsf(target_speed) / g.speed_cruise) * g.throttle_cruise * 10;
     int throttle_target = throttle_base + throttle_nudge;
+    */
 
     /*
         reduce target speed in proportion to turning rate, up to the
@@ -142,16 +144,22 @@ void Rover::calc_throttle(float target_speed) {
 
     groundspeed_error = fabsf(target_speed) - ground_speed;
 
+    /* MARCO
     throttle = throttle_target + (g.pidSpeedThrottle.get_pid(groundspeed_error * 100) / 100);
+    */
 
+    throttle += g.pidSpeedThrottle.get_pid(groundspeed_error, 5.0);
     // also reduce the throttle by the reduction factor. This gives a
     // much faster response in turns
     throttle *= reduction;
 
+    // MARCO XXX: Test fixed throttle!
+    // throttle = g.throttle_cruise * 10;
+
     if (in_reverse) {
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(-throttle, -g.throttle_max, -g.throttle_min));
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(-throttle, -g.throttle_max * 10, -g.throttle_min * 10));
     } else {
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(throttle, g.throttle_min, g.throttle_max));
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(throttle, g.throttle_min * 10, g.throttle_max * 10));
     }
 
     if (!in_reverse && g.braking_percent != 0 && groundspeed_error < -g.braking_speederr) {
@@ -163,8 +171,8 @@ void Rover::calc_throttle(float target_speed) {
         // of braking_speederr, and 100% gain when groundspeed_error
         // is 2*braking_speederr
         float brake_gain = constrain_float(((-groundspeed_error)-g.braking_speederr)/g.braking_speederr, 0, 1);
-        int16_t braking_throttle = g.throttle_max * (g.braking_percent * 0.01f) * brake_gain;
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(-braking_throttle, -g.throttle_max, -g.throttle_min));
+        int16_t braking_throttle = g.throttle_max * 10 * (g.braking_percent * 0.01f) * brake_gain;
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(-braking_throttle, -g.throttle_max * 10, -g.throttle_min * 10));
 
         // temporarily set us in reverse to allow the PWM setting to
         // go negative
@@ -262,12 +270,12 @@ void Rover::set_servos(void) {
     } else {
         if (in_reverse) {
             SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(SRV_Channels::get_output_scaled(SRV_Channel::k_throttle),
-                                          -g.throttle_max,
-                                          -g.throttle_min));
+                                          -g.throttle_max * 10,
+                                          -g.throttle_min * 10));
         } else {
             SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, constrain_int16(SRV_Channels::get_output_scaled(SRV_Channel::k_throttle),
-                                          g.throttle_min.get(),
-                                          g.throttle_max.get()));
+                                          g.throttle_min * 10,
+                                          g.throttle_max * 10));
         }
 
         if ((failsafe.bits & FAILSAFE_EVENT_THROTTLE) && control_mode < AUTO) {
@@ -313,7 +321,7 @@ void Rover::set_servos(void) {
             motor2 = throttle_scaled;
         }
         SRV_Channels::set_output_scaled(SRV_Channel::k_steering, 4500 * motor1);
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, 100 * motor2);
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, 100 * 10 * motor2);
     }
 
     if (!arming.is_armed()) {

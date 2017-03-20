@@ -11,10 +11,10 @@ void Rover::set_control_channels(void)
 
     // set rc channel ranges
     channel_steer->set_angle(SERVO_MAX);
-    channel_throttle->set_angle(100);
+    channel_throttle->set_angle(1000);    // MARCO changed from percents to 0.1 of percents
 
     SRV_Channels::set_angle(SRV_Channel::k_steering, SERVO_MAX);
-    SRV_Channels::set_angle(SRV_Channel::k_throttle, 100);
+    SRV_Channels::set_angle(SRV_Channel::k_throttle, 1000);    // MARCO changed from percents to 0.1 of percents
 
     // For a rover safety is TRIM throttle
     if (!arming.is_armed() && arming.arming_required() == AP_Arming::YES_MIN_PWM) {
@@ -135,10 +135,10 @@ void Rover::read_radio()
 
     // Check if the throttle value is above 50% and we need to nudge
     // Make sure its above 50% in the direction we are travelling
-    if ((abs(SRV_Channels::get_output_scaled(SRV_Channel::k_throttle)) > 50) &&
+    if ((abs(SRV_Channels::get_output_scaled(SRV_Channel::k_throttle)) > 50 * 10) &&
         (((SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) < 0) && in_reverse) ||
          ((SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) > 0) && !in_reverse))) {
-            throttle_nudge = (g.throttle_max - g.throttle_cruise) *
+            throttle_nudge = (g.throttle_max - g.throttle_cruise) * 10 *
                 ((fabsf(channel_throttle->norm_input())-0.5f) / 0.5f);
     } else {
         throttle_nudge = 0;

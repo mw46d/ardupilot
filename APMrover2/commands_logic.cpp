@@ -370,7 +370,7 @@ void Rover::nav_set_yaw_speed()
     // if we haven't received a MAV_CMD_NAV_SET_YAW_SPEED message within the last 3 seconds bring the rover to a halt
     if ((millis() - guided_yaw_speed.msg_time_ms) > 3000) {
         gcs_send_text(MAV_SEVERITY_WARNING, "NAV_SET_YAW_SPEED not recvd last 3secs, stopping");
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min.get());
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle,g.throttle_min * 10);
         SRV_Channels::set_output_scaled(SRV_Channel::k_steering,0);
         lateral_acceleration = 0;
         return;
