@@ -749,16 +749,31 @@ AP_GPS_UBLOX::_parse_gps(void)
                       (unsigned)_buffer.sbas.maxSBAS,
                       (unsigned)_buffer.sbas.scanmode2,
                       (unsigned)_buffer.sbas.scanmode1);
-                if (_buffer.sbas.mode != gps._sbas_mode) {
+                // MARCO - set the SBAS values
+                // if (_buffer.sbas.mode != gps._sbas_mode) {
+                {
+                    union {
+                        uint32_t u32;
+                        uint8_t a8[4];
+                    } mw1;
                     _buffer.sbas.mode = gps._sbas_mode;
+                    _buffer.sbas.usage = 0x03;
+                    _buffer.sbas.maxSBAS = 3;
+                    _buffer.sbas.scanmode2 = 0x0;
+                    mw1.a8[0] = 0xd1;
+                    mw1.a8[1] = 0xa2;
+                    mw1.a8[2] = 0x06;
+                    mw1.a8[3] = 0x00;
+                    _buffer.sbas.scanmode1 = mw1.u32;
                     _send_message(CLASS_CFG, MSG_CFG_SBAS,
                                   &_buffer.sbas,
                                   sizeof(_buffer.sbas));
                     _unconfigured_messages |= CONFIG_SBAS;
                     _cfg_needs_save = true;
-                } else {
-                    _unconfigured_messages &= ~CONFIG_SBAS;
                 }
+                // } else {
+                //     _unconfigured_messages &= ~CONFIG_SBAS;
+                // }
             } else {
                     _unconfigured_messages &= ~CONFIG_SBAS;
             }
