@@ -722,6 +722,28 @@ void GCS_MAVLINK_Rover::handle_change_alt_request(AP_Mission::Mission_Command &c
     // nothing to do
 }
 
+// MARCO
+uint8_t Rover::set_speed(float type, float speed, float thrttle) {
+    switch ((int)type) {
+    case 0:                                         // Airspeed
+    case 1:                                         // Ground Speed
+        if (speed > 0) {                            // in m/s
+            g.speed_cruise.set(speed);
+            gcs_send_text_fmt(MAV_SEVERITY_INFO, "Cruise speed: %.1f m/s", g.speed_cruise.get());
+        }
+
+        if (thrttle > 0 && thrttle <= 100) {
+            g.throttle_cruise.set(thrttle);
+            gcs_send_text_fmt(MAV_SEVERITY_INFO, "Cruise throttle: %.1f", g.throttle_cruise.get());
+        }
+        return MAV_RESULT_ACCEPTED;
+        break;
+    }
+
+    return MAV_RESULT_UNSUPPORTED;
+}
+// End MARCO
+
 void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
 {
     switch (msg->msgid) {
@@ -965,6 +987,12 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
                 result = MAV_RESULT_UNSUPPORTED;
             }
             break;
+
+        // MARCO
+        case MAV_CMD_DO_CHANGE_SPEED:
+                result = rover.set_speed(packet.param1, packet.param2, packet.param3);
+            break;
+        // End MARCO
 
         case MAV_CMD_DO_SET_SERVO:
             if (rover.ServoRelayEvents.do_set_servo(packet.param1, packet.param2)) {

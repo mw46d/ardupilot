@@ -522,6 +522,9 @@ private:
     void startup_ground(void);
     void set_reverse(bool reverse);
     void set_mode(enum mode mode);
+    // MARCO
+    uint8_t set_speed(float type, float speed, float thrttle);
+    // End MARCO
     bool mavlink_set_mode(uint8_t mode);
     void failsafe_trigger(uint8_t failsafe_type, bool on);
     void startup_INS_ground(void);
