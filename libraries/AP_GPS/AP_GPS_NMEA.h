@@ -62,6 +62,9 @@ public:
     /// accordingly.
     bool        read() override;
 
+    // MARCO
+    AP_GPS::GPS_Status highest_supported_status(void) { return AP_GPS::GPS_OK_FIX_3D_RTK_FIXED; }
+
 	static bool _detect(struct NMEA_detect_state &state, uint8_t data);
 
     const char *name() const override { return "NMEA"; }

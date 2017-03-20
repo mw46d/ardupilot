@@ -584,6 +584,9 @@ bool AP_GPS_NMEA::_term_complete()
                 _new_quality_indicator = 0;
             }
             break;
+        case _GPS_SENTENCE_VTG + 9: // validity (VTG) (we may not see this field)
+            _gps_data_good = _term[0] != 'N';
+            break;
         case _GPS_SENTENCE_GGA + 7: // satellite count (GGA)
             _new_satellite_count = atol(_term);
             break;
