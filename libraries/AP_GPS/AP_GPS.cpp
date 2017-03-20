@@ -246,6 +246,59 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("BLEND_TC", 21, AP_GPS, _blend_tc, 10.0f),
 
+    // MARCO
+    // @Param: TYPE3
+    // @DisplayName: 3rd GPS type
+    // @Description: GPS type of 3rd GPS
+    // @Values: 0:None,1:AUTO,2:uBlox,3:MTK,4:MTK19,5:NMEA,6:SiRF,7:HIL,8:SwiftNav,9:PX4-UAVCAN,10:SBF,11:GSOF,12:QURT,13:ERB,14:MAV,15:NOVA
+    // @RebootRequired: True
+    // @User: Advanced
+    AP_GROUPINFO("TYPE3", 22, AP_GPS, _type[2], 0),
+
+    // @Param: GNSS_MODE3
+    // @DisplayName: GNSS system configuration
+    // @Description: Bitmask for what GNSS system to use on the third GPS (all unchecked or zero to leave GPS as configured)
+    // @Values: 0:Leave as currently configured, 1:GPS-NoSBAS, 3:GPS+SBAS, 4:Galileo-NoSBAS, 6:Galileo+SBAS, 8:Beidou, 51:GPS+IMES+QZSS+SBAS (Japan Only), 64:GLONASS, 66:GLONASS+SBAS, 67:GPS+GLONASS+SBAS
+    // @Bitmask: 0:GPS,1:SBAS,2:Galileo,3:Beidou,4:IMES,5:QZSS,6:GLOSNASS
+    // @User: Advanced
+    AP_GROUPINFO("GNSS_MODE3", 23, AP_GPS, _gnss_mode[2], 0),
+
+    // @Param: RATE_MS3
+    // @DisplayName: GPS 3 update rate in milliseconds
+    // @Description: Controls how often the GPS should provide a position update. Lowering below 5Hz is not allowed
+    // @Units: milliseconds
+    // @Values: 100:10Hz,125:8Hz,200:5Hz
+    // @User: Advanced
+    AP_GROUPINFO("RATE_MS3", 24, AP_GPS, _rate_ms[2], 200),
+
+    // @Param: POS3_X
+    // @DisplayName: Antenna X position offset
+    // @Description: X position of the third GPS antenna in body frame. Positive X is forward of the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @User: Advanced
+
+    // @Param: POS3_Y
+    // @DisplayName: Antenna Y position offset
+    // @Description: Y position of the third GPS antenna in body frame. Positive Y is to the right of the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @User: Advanced
+
+    // @Param: POS3_Z
+    // @DisplayName: Antenna Z position offset
+    // @Description: Z position of the third GPS antenna in body frame. Positive Z is down from the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @User: Advanced
+    AP_GROUPINFO("POS3", 25, AP_GPS, _antenna_offset[2], 0.0f),
+
+    // @Param: DELAY_MS3
+    // @DisplayName: GPS 3 delay in milliseconds
+    // @Description: Controls the amount of GPS  measurement delay that the autopilot compensates for. Set to zero to use the default delay for the detected GPS type.
+    // @Units: milliseconds
+    // @Range: 0 250
+    // @User: Advanced
+    AP_GROUPINFO("DELAY_MS3", 26, AP_GPS, _delay_ms[2], 0),
+    // END MARCO
+
     AP_GROUPEND
 };
 
@@ -262,8 +315,12 @@ void AP_GPS::init(DataFlash_Class *dataflash, const AP_SerialManager& serial_man
     primary_instance = 0;
 
     // search for serial ports with gps protocol
-    _port[0] = serial_manager.find_serial(AP_SerialManager::SerialProtocol_GPS, 0);
-    _port[1] = serial_manager.find_serial(AP_SerialManager::SerialProtocol_GPS, 1);
+    // MARCO
+    for (int i = 0; i < GPS_MAX_RECEIVERS; i++) {
+        _port[i] = serial_manager.find_serial(AP_SerialManager::SerialProtocol_GPS, i);
+        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS::init _port[%d] =  0x%p ", i,
+            (_port[i] == nullptr ? 0 : &(_port[i])));
+    }
     _last_instance_swap_ms = 0;
 
     // Initialise class variables used to do GPS blending
@@ -663,6 +720,7 @@ AP_GPS::update(void)
                     // choose GPS with highest state or higher number of satellites
                     if ((state[i].status > state[primary_instance].status) ||
                         ((state[i].status == state[primary_instance].status) && (state[i].num_sats > state[primary_instance].num_sats))) {
+                        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
                         primary_instance = i;
                         _last_instance_swap_ms = now;
                     }
@@ -675,6 +733,7 @@ AP_GPS::update(void)
                     }
                     if (state[i].status > state[primary_instance].status) {
                         // we have a higher status lock, or primary is set to the blended GPS, change GPS
+                        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
                         primary_instance = i;
                         _last_instance_swap_ms = now;
                         continue;
@@ -693,6 +752,7 @@ AP_GPS::update(void)
                             // then tend to stick to the new GPS as primary. We don't
                             // want to switch too often as it will look like a
                             // position shift to the controllers.
+                            GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
                             primary_instance = i;
                             _last_instance_swap_ms = now;
                         }
