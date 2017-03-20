@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 #include "AP_Mount_Alexmos.h"
 
 extern const AP_HAL::HAL& hal;
@@ -6,7 +5,7 @@ extern const AP_HAL::HAL& hal;
 void AP_Mount_Alexmos::init(const AP_SerialManager& serial_manager)
 {
     // check for alexmos protcol
-    if ((_port = serial_manager.find_serial(AP_SerialManager::SerialProtocol_AlexMos))) {
+    if ((_port = serial_manager.find_serial(AP_SerialManager::SerialProtocol_AlexMos, 0))) {
         _initialised = true;
         get_boardinfo();
         read_params(0); //we request parameters for profile 0 and therfore get global and profile parameters
@@ -37,6 +36,7 @@ void AP_Mount_Alexmos::update()
         // point to the angles given by a mavlink message
         case MAV_MOUNT_MODE_MAVLINK_TARGETING:
             // do nothing because earth-frame angle targets (i.e. _angle_ef_target_rad) should have already been set by a MOUNT_CONTROL message from GCS
+            control_axis(_angle_ef_target_rad, false);
             break;
 
         // RC radio manual angle control, but with stabilization from the AHRS
@@ -76,6 +76,10 @@ void AP_Mount_Alexmos::set_mode(enum MAV_MOUNT_MODE mode)
 // status_msg - called to allow mounts to send their status to GCS using the MOUNT_STATUS message
 void AP_Mount_Alexmos::status_msg(mavlink_channel_t chan)
 {
+    if (!_initialised) {
+        return;
+    }
+
     get_angles();
     mavlink_msg_mount_status_send(chan, 0, 0, _current_angle.y*100, _current_angle.x*100, _current_angle.z*100);
 }
@@ -86,19 +90,20 @@ void AP_Mount_Alexmos::status_msg(mavlink_channel_t chan)
 void AP_Mount_Alexmos::get_angles()
 {
     uint8_t data[1] = {(uint8_t)1};
-    send_command (CMD_GET_ANGLES,  data , 1);
+    send_command(CMD_GET_ANGLES, data, 1);
 }
-	
+
 /*
- * set_motor will activate motors if true , and disable them if false.
+ * set_motor will activate motors if true, and disable them if false.
  */
-void AP_Mount_Alexmos::set_motor(bool on){
+void AP_Mount_Alexmos::set_motor(bool on)
+{
     if (on) {
         uint8_t data[1] = {(uint8_t)1};
-        send_command (CMD_MOTORS_ON,  data, 1);
+        send_command(CMD_MOTORS_ON, data, 1);
     } else {
         uint8_t data[1] = {(uint8_t)1};
-        send_command (CMD_MOTORS_OFF, data, 1);
+        send_command(CMD_MOTORS_OFF, data, 1);
     }
 }
 
@@ -111,13 +116,13 @@ void AP_Mount_Alexmos::get_boardinfo()
         return;
     }
     uint8_t data[1] = {(uint8_t)1};
-    send_command (CMD_BOARD_INFO,  data , 1);
+    send_command(CMD_BOARD_INFO, data, 1);
 }
 
 /*
   control_axis : send new angles to the gimbal at a fixed speed of 30 deg/s2
 */
-void AP_Mount_Alexmos::control_axis(const Vector3f& angle, bool target_in_degrees )
+void AP_Mount_Alexmos::control_axis(const Vector3f& angle, bool target_in_degrees)
 {
     // convert to degrees if necessary
     Vector3f target_deg = angle;
@@ -132,15 +137,16 @@ void AP_Mount_Alexmos::control_axis(const Vector3f& angle, bool target_in_degree
     outgoing_buffer.angle_speed.angle_pitch = DEGREE_TO_VALUE(target_deg.y);
     outgoing_buffer.angle_speed.speed_yaw = DEGREE_PER_SEC_TO_VALUE(AP_MOUNT_ALEXMOS_SPEED);
     outgoing_buffer.angle_speed.angle_yaw = DEGREE_TO_VALUE(target_deg.z);
-    send_command (CMD_CONTROL,  outgoing_buffer.bytes , sizeof (alexmos_angles_speed));
+    send_command(CMD_CONTROL, (uint8_t *)&outgoing_buffer.angle_speed, sizeof(alexmos_angles_speed));
 }
 
 /*
   read current profile profile_id and global parameters from the gimbal settings
 */
-void AP_Mount_Alexmos::read_params(uint8_t profile_id){
+void AP_Mount_Alexmos::read_params(uint8_t profile_id)
+{
     uint8_t data[1] = {(uint8_t) profile_id}; 
-    send_command (CMD_READ_PARAMS,  data , 1);
+    send_command(CMD_READ_PARAMS, data, 1);
 }
 
 /*
@@ -151,7 +157,7 @@ void AP_Mount_Alexmos::write_params()
     if (!_param_read_once) {
         return;
     }
-    send_command (CMD_WRITE_PARAMS,  _current_parameters.bytes , sizeof (alexmos_params));
+    send_command(CMD_WRITE_PARAMS, (uint8_t *)&_current_parameters.params, sizeof(alexmos_params));
 }
 
 /*
@@ -159,7 +165,7 @@ void AP_Mount_Alexmos::write_params()
 */
 void AP_Mount_Alexmos::send_command(uint8_t cmd, uint8_t* data, uint8_t size)
 {
-    if (_port->txspace() < (size + 5)) {
+    if (_port->txspace() < (size + 5U)) {
         return;
     }
     uint8_t checksum = 0;
@@ -170,9 +176,9 @@ void AP_Mount_Alexmos::send_command(uint8_t cmd, uint8_t* data, uint8_t size)
 
     for (uint8_t i = 0;  i != size ; i++) {
         checksum += data[i];
-        _port->write ( data[i] );
+        _port->write( data[i] );
     }
-    _port->write (checksum);
+    _port->write(checksum);
 }
 
 /*
@@ -185,8 +191,8 @@ void AP_Mount_Alexmos::parse_body()
             _board_version = _buffer.version._board_version/ 10;
             _current_firmware_version = _buffer.version._firmware_version / 1000.0f ;
             _firmware_beta_version = _buffer.version._firmware_version % 10 ;
-            _gimbal_3axis = ( _buffer.version._board_features & 0x1 );
-            _gimbal_bat_monitoring = (_buffer.version._board_features & 0x2 );
+            _gimbal_3axis = (_buffer.version._board_features & 0x1);
+            _gimbal_bat_monitoring = (_buffer.version._board_features & 0x2);
             break;
 
         case CMD_GET_ANGLES:
@@ -222,7 +228,7 @@ void AP_Mount_Alexmos::read_incoming()
     if (numc < 0 ){
         return;
     }
-        
+
     for (int16_t i = 0; i < numc; i++) {        // Process bytes received
         data = _port->read();
         switch (_step) {
@@ -261,7 +267,7 @@ void AP_Mount_Alexmos::read_incoming()
             case 4: // parsing body
                 _checksum += data;
                 if (_payload_counter < sizeof(_buffer)) {
-                    _buffer.bytes[_payload_counter] = data;
+                    _buffer[_payload_counter] = data;
                 }
                 if (++_payload_counter == _payload_length)
                     _step++;
@@ -272,7 +278,7 @@ void AP_Mount_Alexmos::read_incoming()
                 if (_checksum  != data) {
                     break;
                 }
-                parse_body ();
+                parse_body();
         }
     }
 }

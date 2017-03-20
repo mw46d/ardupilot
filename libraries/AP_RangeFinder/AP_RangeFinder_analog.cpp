@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +18,9 @@
  *
  */
 
-#include <AP_HAL.h>
-#include <AP_Common.h>
-#include <AP_Math.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_Math/AP_Math.h>
 #include "RangeFinder.h"
 #include "AP_RangeFinder_analog.h"
 
@@ -36,13 +35,14 @@ AP_RangeFinder_analog::AP_RangeFinder_analog(RangeFinder &_ranger, uint8_t insta
     AP_RangeFinder_Backend(_ranger, instance, _state)
 {
     source = hal.analogin->channel(ranger._pin[instance]);
-    if (source == NULL) {
+    if (source == nullptr) {
         // failed to allocate a ADC channel? This shouldn't happen
-        state.healthy = false;
+        set_status(RangeFinder::RangeFinder_NotConnected);
         return;
     }
     source->set_stop_pin((uint8_t)ranger._stop_pin[instance]);
     source->set_settle_time((uint16_t)ranger._settle_time_ms[instance]);
+    set_status(RangeFinder::RangeFinder_NoData);
 }
 
 /* 
@@ -64,7 +64,7 @@ bool AP_RangeFinder_analog::detect(RangeFinder &_ranger, uint8_t instance)
  */
 void AP_RangeFinder_analog::update_voltage(void)
 {
-   if (source == NULL) {
+   if (source == nullptr) {
        state.voltage_mv = 0;
        return;
    }
@@ -106,8 +106,8 @@ void AP_RangeFinder_analog::update(void)
             dist_m = 0;
         }
         dist_m = scaling / (v - offset);
-        if (isinf(dist_m) || dist_m > max_distance_cm) {
-            dist_m = max_distance_cm * 0.01;
+        if (isinf(dist_m) || dist_m > max_distance_cm * 0.01f) {
+            dist_m = max_distance_cm * 0.01f;
         }
         break;
     }
@@ -116,8 +116,7 @@ void AP_RangeFinder_analog::update(void)
     }
     state.distance_cm = dist_m * 100.0f;  
 
-    // we can't actually tell if an analog rangefinder is healthy, so
-    // always set as healthy
-    state.healthy = true;
+    // update range_valid state based on distance measured
+    update_status();
 }
 

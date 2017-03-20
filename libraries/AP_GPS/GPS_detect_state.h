@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +48,12 @@ struct SIRF_detect_state {
 };
 
 struct UBLOX_detect_state {
+    uint8_t payload_length, payload_counter;
+    uint8_t step;
+    uint8_t ck_a, ck_b;
+};
+
+struct ERB_detect_state {
     uint8_t payload_length, payload_counter;
     uint8_t step;
     uint8_t ck_a, ck_b;

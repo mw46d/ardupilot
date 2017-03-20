@@ -12,14 +12,14 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef AP_VEHICLE_H
-#define AP_VEHICLE_H
+#pragma once
+
 /*
   this header holds a parameter structure for each vehicle type for
   parameters needed by multiple libraries
  */
 
-#include <AP_Param.h>
+#include <AP_Param/AP_Param.h>
 
 class AP_Vehicle {
 
@@ -32,13 +32,42 @@ public:
         AP_Int8 throttle_max;	
         AP_Int8 throttle_slewrate;
         AP_Int8 throttle_cruise;
+        AP_Int8 takeoff_throttle_max;
         AP_Int16 airspeed_min;
         AP_Int16 airspeed_max;
+        AP_Int32 airspeed_cruise_cm;
+        AP_Int32 min_gndspeed_cm;
+        AP_Int8  crash_detection_enable;
+        AP_Int16 roll_limit_cd;
         AP_Int16 pitch_limit_max_cd;
         AP_Int16 pitch_limit_min_cd;        
         AP_Int8  autotune_level;
-        AP_Int16 land_pitch_cd;
         AP_Int8  stall_prevention;
+        AP_Int16 loiter_radius;
+
+        struct Rangefinder_State {
+            bool in_range:1;
+            bool have_initial_reading:1;
+            bool in_use:1;
+            float initial_range;
+            float correction;
+            float initial_correction;
+            float last_stable_correction;
+            uint32_t last_correction_time_ms;
+            uint8_t in_range_count;
+            float height_estimate;
+            float last_distance;
+        };
+
+
+        // stages of flight
+        enum FlightStage {
+            FLIGHT_TAKEOFF       = 1,
+            FLIGHT_VTOL          = 2,
+            FLIGHT_NORMAL        = 3,
+            FLIGHT_LAND          = 4,
+            FLIGHT_ABORT_LAND    = 7
+        };
     };
 
     /*
@@ -49,27 +78,5 @@ public:
     };
 };
 
-/*
-  define common vehicle build types. Note that the APM_BUILD_DIRECTORY
-  define is only available with makefile based build, not with
-  arduino.
-  Also note that code needs to support other APM_BUILD_DIRECTORY
-  values for example sketches
- */
-#define APM_BUILD_APMrover2      1
-#define APM_BUILD_ArduCopter     2
-#define APM_BUILD_ArduPlane      3
-#define APM_BUILD_AntennaTracker 4
-#define APM_BUILD_UNKNOWN        5
 
-/*
-  using this macro catches cases where we try to check vehicle type on
-  build systems that don't support it
- */
-#ifdef APM_BUILD_DIRECTORY
-#define APM_BUILD_TYPE(type) ((type) == APM_BUILD_DIRECTORY)
-#else
-#define APM_BUILD_TYPE(type) ((type) == APM_BUILD_UNKNOWN)
-#endif
-
-#endif // AP_VEHICLE_H
+#include "AP_Vehicle_Type.h"

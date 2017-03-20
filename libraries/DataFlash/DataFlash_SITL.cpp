@@ -1,11 +1,12 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
   hacked up DataFlash library for Desktop support
 */
 
-#include <AP_HAL.h>
+#include "DataFlash_SITL.h"
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_AVR_SITL
+#include <AP_HAL/AP_HAL.h>
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -14,7 +15,8 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <assert.h>
-#include "DataFlash.h"
+
+#pragma GCC diagnostic ignored "-Wunused-result"
 
 #define DF_PAGE_SIZE 512
 #define DF_NUM_PAGES 16384
@@ -25,15 +27,15 @@ static int flash_fd;
 static uint8_t buffer[2][DF_PAGE_SIZE];
 
 // Public Methods //////////////////////////////////////////////////////////////
-void DataFlash_SITL::Init(const struct LogStructure *structure, uint8_t num_types)
+void DataFlash_SITL::Init()
 {
-    DataFlash_Class::Init(structure, num_types);
+    DataFlash_Backend::Init();
 	if (flash_fd == 0) {
-		flash_fd = open("dataflash.bin", O_RDWR, 0777);
+		flash_fd = open("dataflash.bin", O_RDWR|O_CLOEXEC, 0777);
 		if (flash_fd == -1) {
 			uint8_t *fill;
 			fill = (uint8_t *)malloc(DF_PAGE_SIZE*DF_NUM_PAGES);
-			flash_fd = open("dataflash.bin", O_RDWR | O_CREAT, 0777);
+			flash_fd = open("dataflash.bin", O_RDWR | O_CREAT | O_CLOEXEC, 0777);
 			memset(fill, 0xFF, DF_PAGE_SIZE*DF_NUM_PAGES);
 			write(flash_fd, fill, DF_PAGE_SIZE*DF_NUM_PAGES);
 			free(fill);
@@ -158,5 +160,3 @@ void DataFlash_SITL::ChipErase()
 
 
 #endif
-
-

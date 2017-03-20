@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +16,11 @@
   handle checking mission points for terrain data
  */
 
-#include <AP_HAL.h>
-#include <AP_Common.h>
-#include <AP_Math.h>
-#include <GCS_MAVLink.h>
-#include <GCS.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_Math/AP_Math.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
+#include <GCS_MAVLink/GCS.h>
 #include "AP_Terrain.h"
 
 #if AP_TERRAIN_AVAILABLE
@@ -87,7 +86,7 @@ void AP_Terrain::update_mission_data(void)
 
         // we have a mission command to check
         float height;
-        if (!height_amsl(cmd.content.location, height)) {
+        if (!height_amsl(cmd.content.location, height, false)) {
             // if we can't get data for a mission item then return and
             // check again next time
             return;
@@ -143,7 +142,7 @@ void AP_Terrain::update_rally_data(void)
         loc.lat = rp.lat;
         loc.lng = rp.lng;
         float height;
-        if (!height_amsl(loc, height)) {
+        if (!height_amsl(loc, height, false)) {
             // if we can't get data for a rally item then return and
             // check again next time
             return;

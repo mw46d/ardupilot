@@ -1,5 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 /************************************************************
 * AP_mount -- library to control a 2 or 3 axis mount.		*
 *															*
@@ -19,16 +17,16 @@
 * Comments: All angles in degrees * 100, distances in meters*
 *			unless otherwise stated.						*
 ************************************************************/
-#ifndef __AP_MOUNT_H__
-#define __AP_MOUNT_H__
+#pragma once
 
-#include <AP_Math.h>
-#include <AP_Common.h>
-#include <AP_GPS.h>
-#include <AP_AHRS.h>
-#include <GCS_MAVLink.h>
-#include "../RC_Channel/RC_Channel.h"
-#include "../AP_SerialManager/AP_SerialManager.h"
+#include <AP_Math/AP_Math.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_GPS/AP_GPS.h>
+#include <AP_AHRS/AP_AHRS.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
+#include <RC_Channel/RC_Channel.h>
+#include <AP_SerialManager/AP_SerialManager.h>
+#include <DataFlash/DataFlash.h>
 
 // maximum number of mounts
 #define AP_MOUNT_MAX_INSTANCES          1
@@ -36,28 +34,25 @@
 // declare backend classes
 class AP_Mount_Backend;
 class AP_Mount_Servo;
-class AP_Mount_MAVLink;
+class AP_Mount_SoloGimbal;
 class AP_Mount_Alexmos;
 class AP_Mount_SToRM32;
+class AP_Mount_SToRM32_serial;
 
 /*
   This is a workaround to allow the MAVLink backend access to the
   SmallEKF. It would be nice to find a neater solution to this
  */
-#if AP_AHRS_NAVEKF_AVAILABLE
-#define AP_AHRS_MOUNT AP_AHRS_NavEKF
-#else
-#define AP_AHRS_MOUNT AP_AHRS
-#endif
 
 class AP_Mount
 {
     // declare backends as friends
     friend class AP_Mount_Backend;
     friend class AP_Mount_Servo;
-    friend class AP_Mount_MAVLink;
+    friend class AP_Mount_SoloGimbal;
     friend class AP_Mount_Alexmos;
     friend class AP_Mount_SToRM32;
+    friend class AP_Mount_SToRM32_serial;
 
 public:
 
@@ -65,19 +60,23 @@ public:
     enum MountType {
         Mount_Type_None = 0,            /// no mount
         Mount_Type_Servo = 1,           /// servo controlled mount
-        Mount_Type_MAVLink = 2,         /// MAVLink controlled mount
+        Mount_Type_SoloGimbal = 2,      /// Solo's gimbal
         Mount_Type_Alexmos = 3,         /// Alexmos mount
-        Mount_Type_SToRM32 = 4          /// SToRM32 mount
+        Mount_Type_SToRM32 = 4,         /// SToRM32 mount using MAVLink protocol
+        Mount_Type_SToRM32_serial = 5   /// SToRM32 mount using custom serial protocol
     };
 
     // Constructor
-    AP_Mount(const AP_AHRS_MOUNT &ahrs, const struct Location &current_loc);
+    AP_Mount(const AP_AHRS_TYPE &ahrs, const struct Location &current_loc);
 
     // init - detect and initialise all mounts
-    void init(const AP_SerialManager& serial_manager);
+    void init(DataFlash_Class *dataflash, const AP_SerialManager& serial_manager);
 
     // update - give mount opportunity to update servos.  should be called at 10hz or higher
     void update();
+
+    // used for gimbals that need to read INS data at full rate
+    void update_fast();
 
     // get_mount_type - returns the type of mount
     AP_Mount::MountType get_mount_type() const { return get_mount_type(_primary); }
@@ -97,13 +96,21 @@ public:
     void set_mode(uint8_t instance, enum MAV_MOUNT_MODE mode);
 
     // set_mode_to_default - restores the mode to it's default mode held in the MNT_DEFLT_MODE parameter
-    //      this operation requires 230us on an APM2, 60us on a Pixhawk/PX4
+    //      this operation requires 60us on a Pixhawk/PX4
     void set_mode_to_default() { set_mode_to_default(_primary); }
     void set_mode_to_default(uint8_t instance);
+
+    // set_angle_targets - sets angle targets in degrees
+    void set_angle_targets(float roll, float tilt, float pan) { set_angle_targets(_primary, roll, tilt, pan); }
+    void set_angle_targets(uint8_t instance, float roll, float tilt, float pan);
 
     // set_roi_target - sets target location that mount should attempt to point towards
     void set_roi_target(const struct Location &target_loc) { set_roi_target(_primary,target_loc); }
     void set_roi_target(uint8_t instance, const struct Location &target_loc);
+
+    // control - control the mount
+    void control(int32_t pitch_or_lat, int32_t roll_or_lon, int32_t yaw_or_alt, enum MAV_MOUNT_MODE mount_mode) { control(_primary, pitch_or_lat, roll_or_lon, yaw_or_alt, mount_mode); }
+    void control(uint8_t instance, int32_t pitch_or_lat, int32_t roll_or_lon, int32_t yaw_or_alt, enum MAV_MOUNT_MODE mount_mode);
 
     // configure_msg - process MOUNT_CONFIGURE messages received from GCS
     void configure_msg(mavlink_message_t* msg) { configure_msg(_primary, msg); }
@@ -112,6 +119,9 @@ public:
     // control_msg - process MOUNT_CONTROL messages received from GCS
     void control_msg(mavlink_message_t* msg) { control_msg(_primary, msg); }
     void control_msg(uint8_t instance, mavlink_message_t* msg);
+
+    // handle a PARAM_VALUE message
+    void handle_param_value(mavlink_message_t *msg);
 
     // handle a GIMBAL_REPORT message
     void handle_gimbal_report(mavlink_channel_t chan, mavlink_message_t *msg);
@@ -128,7 +138,7 @@ public:
 protected:
 
     // private members
-    const AP_AHRS_MOUNT     &_ahrs;
+    const AP_AHRS_TYPE     &_ahrs;
     const struct Location   &_current_loc;  // reference to the vehicle's current location
 
     // frontend parameters
@@ -170,6 +180,6 @@ protected:
         MAV_MOUNT_MODE  _mode;              // current mode (see MAV_MOUNT_MODE enum)
         struct Location _roi_target;        // roi target location
     } state[AP_MOUNT_MAX_INSTANCES];
-};
 
-#endif // __AP_MOUNT_H__
+    DataFlash_Class *_dataflash;
+};

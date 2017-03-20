@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +13,12 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <AP_Common.h>
-#include <AP_HAL.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_HAL/AP_HAL.h>
 #include "RangeFinder.h"
 #include "RangeFinder_Backend.h"
+
+extern const AP_HAL::HAL& hal;
 
 /*
   base class constructor. 
@@ -27,4 +28,33 @@ AP_RangeFinder_Backend::AP_RangeFinder_Backend(RangeFinder &_ranger, uint8_t ins
         ranger(_ranger),
         state(_state) 
 {
+    _sem = hal.util->new_semaphore();    
+}
+
+// update status based on distance measurement
+void AP_RangeFinder_Backend::update_status()
+{
+    // check distance
+    if ((int16_t)state.distance_cm > ranger._max_distance_cm[state.instance]) {
+        set_status(RangeFinder::RangeFinder_OutOfRangeHigh);
+    } else if ((int16_t)state.distance_cm < ranger._min_distance_cm[state.instance]) {
+        set_status(RangeFinder::RangeFinder_OutOfRangeLow);
+    } else {
+        set_status(RangeFinder::RangeFinder_Good);
+    }
+}
+
+// set status and update valid count
+void AP_RangeFinder_Backend::set_status(RangeFinder::RangeFinder_Status status)
+{
+    state.status = status;
+
+    // update valid count
+    if (status == RangeFinder::RangeFinder_Good) {
+        if (state.range_valid_count < 10) {
+            state.range_valid_count++;
+        }
+    } else {
+        state.range_valid_count = 0;
+    }
 }

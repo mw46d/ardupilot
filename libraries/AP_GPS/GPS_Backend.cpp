@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +13,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <AP_GPS.h>
+#include "AP_GPS.h"
+#include "GPS_Backend.h"
 
 extern const AP_HAL::HAL& hal;
 
@@ -58,30 +58,10 @@ int16_t AP_GPS_Backend::swap_int16(int16_t v) const
     return u.v;
 }
 
-/**
-   calculate current time since the unix epoch in microseconds
-
-   This costs about 60 usec on AVR2560
- */
-uint64_t AP_GPS::time_epoch_usec(uint8_t instance)
-{
-    const GPS_State &istate = state[instance];
-    if (istate.last_gps_time_ms == 0) {
-        return 0;
-    }
-    const uint64_t ms_per_week = 7000ULL*86400ULL;
-    const uint64_t unix_offset = 17000ULL*86400ULL + 52*10*7000ULL*86400ULL - 15000ULL;
-    uint64_t fix_time_ms = unix_offset + istate.time_week*ms_per_week + istate.time_week_ms;
-    // add in the milliseconds since the last fix
-    return (fix_time_ms + (hal.scheduler->millis() - istate.last_gps_time_ms)) * 1000ULL;
-}
-
 
 /**
    fill in time_week_ms and time_week from BCD date and time components
    assumes MTK19 millisecond form of bcd_time
-
-   This function takes about 340 usec on the AVR2560
  */
 void AP_GPS_Backend::make_gps_time(uint32_t bcd_date, uint32_t bcd_milliseconds)
 {
@@ -105,7 +85,7 @@ void AP_GPS_Backend::make_gps_time(uint32_t bcd_date, uint32_t bcd_milliseconds)
     }
 
     // get time in seconds since unix epoch
-    uint32_t ret = (year/4) - 15 + 367*rmon/12 + day;
+    uint32_t ret = (year/4) - (GPS_LEAPSECONDS_MILLIS / 1000UL) + 367*rmon/12 + day;
     ret += year*365 + 10501;
     ret = ret*24 + hour;
     ret = ret*60 + min;
@@ -115,8 +95,8 @@ void AP_GPS_Backend::make_gps_time(uint32_t bcd_date, uint32_t bcd_milliseconds)
     ret -= 272764785UL;
 
     // get GPS week and time
-    state.time_week = ret / (7*86400UL);
-    state.time_week_ms = (ret % (7*86400UL)) * 1000;
+    state.time_week = ret / SEC_PER_WEEK;
+    state.time_week_ms = (ret % SEC_PER_WEEK) * MSEC_PER_SEC;
     state.time_week_ms += msec;
 }
 
@@ -125,7 +105,7 @@ void AP_GPS_Backend::make_gps_time(uint32_t bcd_date, uint32_t bcd_milliseconds)
  */
 void AP_GPS_Backend::fill_3d_velocity(void)
 {
-    float gps_heading = ToRad(state.ground_course_cd * 0.01f);
+    float gps_heading = radians(state.ground_course);
 
     state.velocity.x = state.ground_speed * cosf(gps_heading);
     state.velocity.y = state.ground_speed * sinf(gps_heading);

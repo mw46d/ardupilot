@@ -1,8 +1,8 @@
+#pragma once
 
-#ifndef __AP_HAL_PX4_UARTDRIVER_H__
-#define __AP_HAL_PX4_UARTDRIVER_H__
+#include <AP_HAL/utility/RingBuffer.h>
 
-#include <AP_HAL_PX4.h>
+#include "AP_HAL_PX4.h"
 #include <systemlib/perf_counter.h>
 
 class PX4::PX4UARTDriver : public AP_HAL::UARTDriver {
@@ -18,9 +18,9 @@ public:
     bool tx_pending();
 
     /* PX4 implementations of Stream virtual methods */
-    int16_t available();
-    int16_t txspace();
-    int16_t read();
+    uint32_t available() override;
+    uint32_t txspace() override;
+    int16_t read() override;
 
     /* PX4 implementations of Print virtual methods */
     size_t write(uint8_t c);
@@ -50,28 +50,19 @@ private:
 
     // we use in-task ring buffers to reduce the system call cost
     // of ::read() and ::write() in the main loop
-    uint8_t *_readbuf;
-    uint16_t _readbuf_size;
-
-    // _head is where the next available data is. _tail is where new
-    // data is put
-    volatile uint16_t _readbuf_head;
-    volatile uint16_t _readbuf_tail;
-
-    uint8_t *_writebuf;
-    uint16_t _writebuf_size;
-    volatile uint16_t _writebuf_head;
-    volatile uint16_t _writebuf_tail;
+    ByteBuffer _readbuf{0};
+    ByteBuffer _writebuf{0};
     perf_counter_t  _perf_uart;
 
     int _write_fd(const uint8_t *buf, uint16_t n);
     int _read_fd(uint8_t *buf, uint16_t n);
+    uint64_t _first_write_time;
     uint64_t _last_write_time;
 
     void try_initialise(void);
     uint32_t _last_initialise_attempt_ms;
 
-    uint32_t _os_write_buffer_size;
+    uint32_t _os_start_auto_space;
     uint32_t _total_read;
     uint32_t _total_written;
     enum flow_control _flow_control;
@@ -79,5 +70,3 @@ private:
     pid_t _uart_owner_pid;
 
 };
-
-#endif // __AP_HAL_PX4_UARTDRIVER_H__

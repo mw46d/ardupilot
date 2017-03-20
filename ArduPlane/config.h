@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -19,6 +18,7 @@
 //
 // - Try to keep this file organised in the same order as APM_Config.h.example
 //
+#pragma once
 
 #include "defines.h"
 
@@ -26,15 +26,7 @@
 /// DO NOT EDIT THIS INCLUDE - if you want to make a local change, make that
 /// change in your local copy of APM_Config.h.
 ///
-#ifdef USE_CMAKE_APM_CONFIG
- #include "APM_Config_cmake.h" // <== Prefer cmake config if it exists
-#else
- #include "APM_Config.h" // <== THIS INCLUDE, DO NOT EDIT IT. EVER.
-#endif
-///
-/// DO NOT EDIT THIS INCLUDE - if you want to make a local change, make that
-/// change in your local copy of APM_Config.h.
-///
+#include "APM_Config.h"
 
 // Just so that it's completely clear...
 #define ENABLED                 1
@@ -54,26 +46,6 @@
 #error CONFIG_APM_HARDWARE option is depreated! use CONFIG_HAL_BOARD instead.
 #endif
 
-//////////////////////////////////////////////////////////////////////////////
-// sensor types
-
-#define CONFIG_BARO     HAL_BARO_DEFAULT
-#define CONFIG_COMPASS  HAL_COMPASS_DEFAULT
-
-//////////////////////////////////////////////////////////////////////////////
-// HIL_MODE                                 OPTIONAL
-
-#ifndef HIL_MODE
- #define HIL_MODE        HIL_MODE_DISABLED
-#endif
-
-#if HIL_MODE != HIL_MODE_DISABLED       // we are in HIL mode
- #undef CONFIG_BARO
- #define CONFIG_BARO HAL_BARO_HIL
- #undef  CONFIG_COMPASS
- #define CONFIG_COMPASS HAL_COMPASS_HIL
-#endif
-
 #ifndef MAV_SYSTEM_ID
  # define MAV_SYSTEM_ID          1
 #endif
@@ -83,11 +55,7 @@
 //
 
 #ifndef FRSKY_TELEM_ENABLED
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM1 || CONFIG_HAL_BOARD == HAL_BOARD_APM2
- # define FRSKY_TELEM_ENABLED DISABLED
-#else
- # define FRSKY_TELEM_ENABLED ENABLED
-#endif
+#define FRSKY_TELEM_ENABLED ENABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -101,6 +69,7 @@
  # define OPTFLOW DISABLED
 #endif
 #endif
+
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -212,14 +181,6 @@
 
 
 //////////////////////////////////////////////////////////////////////////////
-// THROTTLE_OUT
-//
-#ifndef THROTTE_OUT
- # define THROTTLE_OUT                   ENABLED
-#endif
-
-
-//////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 // STARTUP BEHAVIOUR
 //////////////////////////////////////////////////////////////////////////////
@@ -249,6 +210,10 @@
  # define ELEVON_CH2_REVERSE     DISABLED
 #endif
 
+#ifndef DSPOILR_RUD_RATE_DEFAULT
+ #define DSPOILR_RUD_RATE_DEFAULT 100
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 // CAMERA TRIGGER AND CONTROL
 //
@@ -262,7 +227,7 @@
 //
 // uses 7726 bytes of memory on 2560 chips (all options are enabled)
 #ifndef MOUNT
- # define MOUNT          ENABLED
+#define MOUNT          ENABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -343,7 +308,7 @@
 #define PITCH_MIN_CENTIDEGREE PITCH_MIN * 100
 
 #ifndef RUDDER_MIX
- # define RUDDER_MIX           0.5
+ # define RUDDER_MIX           0.5f
 #endif
 
 
@@ -361,25 +326,7 @@
  # define LOGGING_ENABLED                ENABLED
 #endif
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM1 || CONFIG_HAL_BOARD == HAL_BOARD_APM2
-#define DEFAULT_LOG_BITMASK     \
-    MASK_LOG_ATTITUDE_MED | \
-    MASK_LOG_GPS | \
-    MASK_LOG_PM | \
-    MASK_LOG_NTUN | \
-    MASK_LOG_CTUN | \
-    MASK_LOG_MODE | \
-    MASK_LOG_CMD | \
-    MASK_LOG_COMPASS | \
-    MASK_LOG_CURRENT | \
-    MASK_LOG_TECS | \
-    MASK_LOG_CAMERA | \
-    MASK_LOG_RC
-#else
-// other systems have plenty of space for full logs
 #define DEFAULT_LOG_BITMASK   0xffff
-#endif
-
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -421,11 +368,7 @@
 // use this to completely disable the CLI. We now default the CLI to
 // off on smaller boards.
 #ifndef CLI_ENABLED
-#if HAL_CPU_CLASS > HAL_CPU_CLASS_16
- # define CLI_ENABLED ENABLED
-#else
- # define CLI_ENABLED DISABLE
-#endif
+#define CLI_ENABLED ENABLED
 #endif
 
 // use this to disable geo-fencing
@@ -452,25 +395,17 @@
  # define RESET_SWITCH_CHAN_PWM 1750
 #endif
 
-// OBC Failsafe enable
-#ifndef OBC_FAILSAFE
-#if HAL_CPU_CLASS >= HAL_CPU_CLASS_75
- # define OBC_FAILSAFE ENABLED
-#else
- # define OBC_FAILSAFE DISABLED
-#endif
+#define HIL_SUPPORT ENABLED
+
+//////////////////////////////////////////////////////////////////////////////
+// Parachute release
+#ifndef PARACHUTE
+#define PARACHUTE ENABLED
 #endif
 
-#if OBC_FAILSAFE == ENABLED && HAL_CPU_CLASS < HAL_CPU_CLASS_75
-#define CLI_ENABLED DISABLED
+#if CONFIG_HAL_BOARD == HAL_BOARD_PX4 && !defined(CONFIG_ARCH_BOARD_PX4FMU_V4)
+# define HAVE_PX4_MIXER 1
+#else
+# define HAVE_PX4_MIXER 0
 #endif
 
-/*
-  build a firmware version string.
-  GIT_VERSION comes from Makefile builds
-*/
-#ifndef GIT_VERSION
-#define FIRMWARE_STRING THISFIRMWARE
-#else
-#define FIRMWARE_STRING THISFIRMWARE " (" GIT_VERSION ")"
-#endif

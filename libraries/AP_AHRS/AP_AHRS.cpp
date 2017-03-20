@@ -10,23 +10,26 @@
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-  
+
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <AP_AHRS.h>
-#include <AP_HAL.h>
+#include "AP_AHRS.h"
+#include "AP_AHRS_View.h"
+#include <AP_HAL/AP_HAL.h>
+
 extern const AP_HAL::HAL& hal;
 
 // table of user settable parameters
-const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
-	// index 0 and 1 are for old parameters that are no longer not used
+const AP_Param::GroupInfo AP_AHRS::var_info[] = {
+    // index 0 and 1 are for old parameters that are no longer not used
 
     // @Param: GPS_GAIN
     // @DisplayName: AHRS GPS gain
-    // @Description: This controls how how much to use the GPS to correct the attitude. This should never be set to zero for a plane as it would result in the plane losing control in turns. For a plane please use the default value of 1.0.
+    // @Description: This controls how much to use the GPS to correct the attitude. This should never be set to zero for a plane as it would result in the plane losing control in turns. For a plane please use the default value of 1.0.
     // @Range: 0.0 1.0
     // @Increment: .01
+    // @User: Advanced
     AP_GROUPINFO("GPS_GAIN",  2, AP_AHRS, gps_gain, 1.0f),
 
     // @Param: GPS_USE
@@ -41,6 +44,7 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     // @Description: This controls the weight the compass or GPS has on the heading. A higher value means the heading will track the yaw source (GPS or compass) more rapidly.
     // @Range: 0.1 0.4
     // @Increment: .01
+    // @User: Advanced
     AP_GROUPINFO("YAW_P", 4,    AP_AHRS, _kp_yaw, 0.2f),
 
     // @Param: RP_P
@@ -48,6 +52,7 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     // @Description: This controls how fast the accelerometers correct the attitude
     // @Range: 0.1 0.4
     // @Increment: .01
+    // @User: Advanced
     AP_GROUPINFO("RP_P",  5,    AP_AHRS, _kp, 0.2f),
 
     // @Param: WIND_MAX
@@ -56,6 +61,7 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     // @Range: 0 127
     // @Units: m/s
     // @Increment: 1
+    // @User: Advanced
     AP_GROUPINFO("WIND_MAX",  6,    AP_AHRS, _wind_max, 0.0f),
 
     // NOTE: 7 was BARO_USE
@@ -66,7 +72,7 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     // @Units: Radians
     // @Range: -0.1745 +0.1745
     // @Increment: 0.01
-    // @User: User
+    // @User: Standard
 
     // @Param: TRIM_Y
     // @DisplayName: AHRS Trim Pitch
@@ -74,7 +80,7 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     // @Units: Radians
     // @Range: -0.1745 +0.1745
     // @Increment: 0.01
-    // @User: User
+    // @User: Standard
 
     // @Param: TRIM_Z
     // @DisplayName: AHRS Trim Yaw
@@ -93,7 +99,7 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     AP_GROUPINFO("ORIENTATION", 9, AP_AHRS, _board_orientation, 0),
 
     // @Param: COMP_BETA
-    // @DisplayName: AHRS Velocity Complmentary Filter Beta Coefficient
+    // @DisplayName: AHRS Velocity Complementary Filter Beta Coefficient
     // @Description: This controls the time constant for the cross-over frequency used to fuse AHRS (airspeed and heading) and GPS data to estimate ground velocity. Time constant is 0.1/beta. A larger time constant will use GPS data less and a small time constant will use air data less.
     // @Range: 0.001 0.5
     // @Increment: .01
@@ -111,36 +117,45 @@ const AP_Param::GroupInfo AP_AHRS::var_info[] PROGMEM = {
     // NOTE: index 12 was for GPS_DELAY, but now removed, fixed delay
     // of 1 was found to be the best choice
 
+    // 13 was the old EKF_USE
+
 #if AP_AHRS_NAVEKF_AVAILABLE
-    // @Param: EKF_USE
+    // @Param: EKF_TYPE
     // @DisplayName: Use NavEKF Kalman filter for attitude and position estimation
-    // @Description: This controls whether the NavEKF Kalman filter is used for attitude and position estimation
-    // @Values: 0:Disabled,1:Enabled
+    // @Description: This controls which NavEKF Kalman filter version is used for attitude and position estimation
+    // @Values: 0:Disabled,2:Enable EKF2,3:Enable EKF3
     // @User: Advanced
-    AP_GROUPINFO("EKF_USE",  13, AP_AHRS, _ekf_use, AHRS_EKF_USE_DEFAULT),
+    AP_GROUPINFO("EKF_TYPE",  14, AP_AHRS, _ekf_type, 2),
 #endif
 
     AP_GROUPEND
 };
 
+// return a smoothed and corrected gyro vector using the latest ins data (which may not have been consumed by the EKF yet)
+Vector3f AP_AHRS::get_gyro_latest(void) const
+{
+    uint8_t primary_gyro = get_primary_gyro_index();
+    return get_ins().get_gyro(primary_gyro) + get_gyro_drift();
+}
+
 // return airspeed estimate if available
 bool AP_AHRS::airspeed_estimate(float *airspeed_ret) const
 {
-	if (airspeed_sensor_enabled()) {
-		*airspeed_ret = _airspeed->get_airspeed();
-		if (_wind_max > 0 && _gps.status() >= AP_GPS::GPS_OK_FIX_2D) {
-                    // constrain the airspeed by the ground speed
-                    // and AHRS_WIND_MAX
-                    float gnd_speed = _gps.ground_speed();
-                    float true_airspeed = *airspeed_ret * get_EAS2TAS();
-                    true_airspeed = constrain_float(true_airspeed,
-                                                    gnd_speed - _wind_max, 
-                                                    gnd_speed + _wind_max);
-                    *airspeed_ret = true_airspeed / get_EAS2TAS();
-		}
-		return true;
-	}
-	return false;
+    if (airspeed_sensor_enabled()) {
+        *airspeed_ret = _airspeed->get_airspeed();
+        if (_wind_max > 0 && _gps.status() >= AP_GPS::GPS_OK_FIX_2D) {
+            // constrain the airspeed by the ground speed
+            // and AHRS_WIND_MAX
+            float gnd_speed = _gps.ground_speed();
+            float true_airspeed = *airspeed_ret * get_EAS2TAS();
+            true_airspeed = constrain_float(true_airspeed,
+                                            gnd_speed - _wind_max,
+                                            gnd_speed + _wind_max);
+            *airspeed_ret = true_airspeed / get_EAS2TAS();
+        }
+        return true;
+    }
+    return false;
 }
 
 // set_trim
@@ -180,12 +195,12 @@ Vector2f AP_AHRS::groundspeed_vector(void)
     bool gotAirspeed = airspeed_estimate_true(&airspeed);
     bool gotGPS = (_gps.status() >= AP_GPS::GPS_OK_FIX_2D);
     if (gotAirspeed) {
-	    Vector3f wind = wind_estimate();
-	    Vector2f wind2d = Vector2f(wind.x, wind.y);
-	    Vector2f airspeed_vector = Vector2f(cosf(yaw), sinf(yaw)) * airspeed;
-	    gndVelADS = airspeed_vector - wind2d;
+        Vector3f wind = wind_estimate();
+        Vector2f wind2d = Vector2f(wind.x, wind.y);
+        Vector2f airspeed_vector = Vector2f(cosf(yaw), sinf(yaw)) * airspeed;
+        gndVelADS = airspeed_vector - wind2d;
     }
-    
+
     // Generate estimate of ground speed vector using GPS
     if (gotGPS) {
         float cog = radians(_gps.ground_course_cd()*0.01f);
@@ -193,65 +208,98 @@ Vector2f AP_AHRS::groundspeed_vector(void)
     }
     // If both ADS and GPS data is available, apply a complementary filter
     if (gotAirspeed && gotGPS) {
-	    // The LPF is applied to the GPS and the HPF is applied to the air data estimate
-	    // before the two are summed
-	    //Define filter coefficients
-	    // alpha and beta must sum to one
-	    // beta = dt/Tau, where
-	    // dt = filter time step (0.1 sec if called by nav loop)
-	    // Tau = cross-over time constant (nominal 2 seconds)
-	    // More lag on GPS requires Tau to be bigger, less lag allows it to be smaller
-	    // To-Do - set Tau as a function of GPS lag.
-	    const float alpha = 1.0f - beta; 
-	    // Run LP filters
-	    _lp = gndVelGPS * beta  + _lp * alpha;
-	    // Run HP filters
-	    _hp = (gndVelADS - _lastGndVelADS) + _hp * alpha;
-	    // Save the current ADS ground vector for the next time step
-	    _lastGndVelADS = gndVelADS;
-	    // Sum the HP and LP filter outputs
-	    return _hp + _lp;
+        // The LPF is applied to the GPS and the HPF is applied to the air data estimate
+        // before the two are summed
+        //Define filter coefficients
+        // alpha and beta must sum to one
+        // beta = dt/Tau, where
+        // dt = filter time step (0.1 sec if called by nav loop)
+        // Tau = cross-over time constant (nominal 2 seconds)
+        // More lag on GPS requires Tau to be bigger, less lag allows it to be smaller
+        // To-Do - set Tau as a function of GPS lag.
+        const float alpha = 1.0f - beta;
+        // Run LP filters
+        _lp = gndVelGPS * beta  + _lp * alpha;
+        // Run HP filters
+        _hp = (gndVelADS - _lastGndVelADS) + _hp * alpha;
+        // Save the current ADS ground vector for the next time step
+        _lastGndVelADS = gndVelADS;
+        // Sum the HP and LP filter outputs
+        return _hp + _lp;
     }
     // Only ADS data is available return ADS estimate
     if (gotAirspeed && !gotGPS) {
-	    return gndVelADS;
+        return gndVelADS;
     }
     // Only GPS data is available so return GPS estimate
     if (!gotAirspeed && gotGPS) {
-	    return gndVelGPS;
+        return gndVelGPS;
     }
     return Vector2f(0.0f, 0.0f);
+}
+
+/*
+  calculate sin and cos of roll/pitch/yaw from a body_to_ned rotation matrix
+ */
+void AP_AHRS::calc_trig(const Matrix3f &rot,
+                        float &cr, float &cp, float &cy,
+                        float &sr, float &sp, float &sy) const
+{
+    Vector2f yaw_vector;
+
+    yaw_vector.x = rot.a.x;
+    yaw_vector.y = rot.b.x;
+    if (fabsf(yaw_vector.x) > 0 ||
+        fabsf(yaw_vector.y) > 0) {
+        yaw_vector.normalize();
+    }
+    sy = constrain_float(yaw_vector.y, -1.0, 1.0);
+    cy = constrain_float(yaw_vector.x, -1.0, 1.0);
+
+    // sanity checks
+    if (yaw_vector.is_inf() || yaw_vector.is_nan()) {
+        sy = 0.0f;
+        cy = 1.0f;
+    }
+    
+    float cx2 = rot.c.x * rot.c.x;
+    if (cx2 >= 1.0f) {
+        cp = 0;
+        cr = 1.0f;
+    } else {
+        cp = safe_sqrt(1 - cx2);
+        cr = rot.c.z / cp;
+    }
+    cp = constrain_float(cp, 0, 1.0);
+    cr = constrain_float(cr, -1.0, 1.0); // this relies on constrain_float() of infinity doing the right thing
+
+    sp = -rot.c.x;
+
+    if (!is_zero(cp)) {
+        sr = rot.c.y / cp;
+    }
+
+    if (is_zero(cp) || isinf(cr) || isnan(cr) || isinf(sr) || isnan(sr)) {
+        float r, p, y;
+        rot.to_euler(&r, &p, &y);
+        cr = cosf(r);
+        sr = sinf(r);
+    }
 }
 
 // update_trig - recalculates _cos_roll, _cos_pitch, etc based on latest attitude
 //      should be called after _dcm_matrix is updated
 void AP_AHRS::update_trig(void)
 {
-    Vector2f yaw_vector;
-    const Matrix3f &temp = get_dcm_matrix();
-
-    // sin_yaw, cos_yaw
-    yaw_vector.x = temp.a.x;
-    yaw_vector.y = temp.b.x;
-    yaw_vector.normalize();
-    _sin_yaw = constrain_float(yaw_vector.y, -1.0, 1.0);
-    _cos_yaw = constrain_float(yaw_vector.x, -1.0, 1.0);
-
-    // cos_roll, cos_pitch
-    float cx2 = temp.c.x * temp.c.x;
-    if (cx2 >= 1.0f) {
-        _cos_pitch = 0;
-        _cos_roll = 1.0f;
-    } else {
-        _cos_pitch = safe_sqrt(1 - cx2);
-        _cos_roll = temp.c.z / _cos_pitch;
+    if (_last_trim != _trim.get()) {
+        _last_trim = _trim.get();
+        _rotation_autopilot_body_to_vehicle_body.from_euler(_last_trim.x, _last_trim.y, 0.0f);
+        _rotation_vehicle_body_to_autopilot_body = _rotation_autopilot_body_to_vehicle_body.transposed();
     }
-    _cos_pitch = constrain_float(_cos_pitch, 0, 1.0);
-    _cos_roll = constrain_float(_cos_roll, -1.0, 1.0); // this relies on constrain_float() of infinity doing the right thing,which it does do in avr-libc
 
-    // sin_roll, sin_pitch
-    _sin_pitch = -temp.c.x;
-    _sin_roll = temp.c.y / _cos_pitch;
+    calc_trig(get_rotation_body_to_ned(),
+              _cos_roll, _cos_pitch, _cos_yaw,
+              _sin_roll, _sin_pitch, _sin_yaw);
 }
 
 /*
@@ -264,4 +312,17 @@ void AP_AHRS::update_cd_values(void)
     yaw_sensor   = degrees(yaw) * 100;
     if (yaw_sensor < 0)
         yaw_sensor += 36000;
+}
+
+/*
+  create a rotated view of AP_AHRS
+ */
+AP_AHRS_View *AP_AHRS::create_view(enum Rotation rotation)
+{
+    if (_view != nullptr) {
+        // can only have one
+        return nullptr;
+    }
+    _view = new AP_AHRS_View(*this, rotation);
+    return _view;
 }

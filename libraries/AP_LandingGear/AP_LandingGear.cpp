@@ -1,14 +1,12 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
-#include <AP_LandingGear.h>
-#include <AP_Relay.h>
-#include <AP_Math.h>
-#include <RC_Channel.h>
-#include <AP_HAL.h>
+#include "AP_LandingGear.h"
+#include <AP_Relay/AP_Relay.h>
+#include <AP_Math/AP_Math.h>
+#include <SRV_Channel/SRV_Channel.h>
+#include <AP_HAL/AP_HAL.h>
 
 extern const AP_HAL::HAL& hal;
 
-const AP_Param::GroupInfo AP_LandingGear::var_info[] PROGMEM = {
+const AP_Param::GroupInfo AP_LandingGear::var_info[] = {
 
     // @Param: SERVO_RTRACT
     // @DisplayName: Landing Gear Servo Retracted PWM Value
@@ -41,7 +39,7 @@ void AP_LandingGear::enable(bool on_off)
 void AP_LandingGear::deploy()
 {
     // set servo PWM to deployed position
-    RC_Channel_aux::set_radio(RC_Channel_aux::k_landing_gear_control, _servo_deploy_pwm);
+    SRV_Channels::set_output_pwm(SRV_Channel::k_landing_gear_control, _servo_deploy_pwm);
 
     // set deployed flag
     _deployed = true;    
@@ -51,7 +49,7 @@ void AP_LandingGear::deploy()
 void AP_LandingGear::retract()
 {    
     // set servo PWM to retracted position
-    RC_Channel_aux::set_radio(RC_Channel_aux::k_landing_gear_control, _servo_retract_pwm);
+    SRV_Channels::set_output_pwm(SRV_Channel::k_landing_gear_control, _servo_retract_pwm);
 
     // reset deployed flag
     _deployed = false;   

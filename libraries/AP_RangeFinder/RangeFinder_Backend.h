@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +12,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#pragma once
 
-#ifndef __AP_RANGEFINDER_BACKEND_H__
-#define __AP_RANGEFINDER_BACKEND_H__
-
-#include <AP_Common.h>
-#include <AP_HAL.h>
+#include <AP_Common/AP_Common.h>
+#include <AP_HAL/AP_HAL.h>
 #include "RangeFinder.h"
 
 class AP_RangeFinder_Backend
@@ -38,9 +35,20 @@ public:
     bool out_of_range(void) const {
         return ranger._powersave_range > 0 && ranger.estimated_terrain_height > ranger._powersave_range;
     }
-    
+
+    virtual void handle_msg(mavlink_message_t *msg) { return; }
+
 protected:
+
+    // update status based on distance measurement
+    void update_status();
+
+    // set status and update valid_count
+    void set_status(RangeFinder::RangeFinder_Status status);
+
     RangeFinder &ranger;
     RangeFinder::RangeFinder_State &state;
+
+    // semaphore for access to shared frontend data
+    AP_HAL::Semaphore *_sem;    
 };
-#endif // __AP_RANGEFINDER_BACKEND_H__

@@ -80,7 +80,8 @@ addfwversion() {
     destdir="$1"
     git log -1 > "$destdir/git-version.txt"
     [ -f APM_Config.h ] && {
-	version=$(grep 'define.THISFIRMWARE' *.pde 2> /dev/null | cut -d'"' -f2)
+        shopt -s nullglob
+	version=$(grep 'define.THISFIRMWARE' version.h 2> /dev/null | cut -d'"' -f2)
 	echo >> "$destdir/git-version.txt"
 	echo "APMVERSION: $version" >> "$destdir/git-version.txt"
     }    
@@ -174,7 +175,7 @@ build_arducopter() {
     frames="quad tri hexa y6 octa octa-quad heli"
     test -n "$VRBRAIN_ROOT"
 	make vrbrain-clean || return
-	for f in $frames quad-hil heli-hil; do
+	for f in $frames; do
 	    echo "Building ArduCopter VRBRAIN-$f binaries"
 	    ddir="$binaries/Copter/$hdate/VRX-$f"
 	    skip_build $tag $ddir && continue

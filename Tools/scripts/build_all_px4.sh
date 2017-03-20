@@ -8,7 +8,10 @@
 set -e
 set -x
 
-for d in ArduPlane ArduCopter APMrover2; do
+git submodule init
+git submodule update
+
+for d in ArduPlane ArduCopter APMrover2 ArduSub; do
     pushd $d
     make px4-clean
     popd
@@ -26,6 +29,11 @@ popd
 
 echo "Testing APMrover2 build"
 pushd APMrover2
+make px4
+popd
+
+echo "Testing ArduSub build"
+pushd ArduSub
 make px4
 popd
 

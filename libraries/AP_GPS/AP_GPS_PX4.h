@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,17 +17,20 @@
 //  GPS proxy driver for APM on PX4 platforms
 //  Code by Holger Steinhaus
 //
-#ifndef __AP_GPS_PX4_H__
-#define __AP_GPS_PX4_H__
+#pragma once
 
-#include <AP_HAL.h>
-#include <AP_GPS.h>
+#include <AP_HAL/AP_HAL.h>
+
+#include "AP_GPS.h"
+#include "GPS_Backend.h"
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4
 #include <modules/uORB/topics/vehicle_gps_position.h>
 
 class AP_GPS_PX4 : public AP_GPS_Backend {
 public:
     AP_GPS_PX4(AP_GPS &_gps, AP_GPS::GPS_State &_state, AP_HAL::UARTDriver *_port);
+    ~AP_GPS_PX4();
 
     bool read();
 
@@ -37,5 +39,3 @@ private:
     struct vehicle_gps_position_s _gps_pos;
 };
 #endif // CONFIG_HAL_BOARD
-#endif // AP_GPS_PX4_H
-

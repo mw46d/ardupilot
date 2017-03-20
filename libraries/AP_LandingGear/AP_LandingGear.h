@@ -1,13 +1,9 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 /// @file	AP_LandingGear.h
 /// @brief	Landing gear control library
+#pragma once
 
-#ifndef AP_LANDINGGEAR_H
-#define AP_LANDINGGEAR_H
-
-#include <AP_Param.h>
-#include <AP_Common.h>
+#include <AP_Param/AP_Param.h>
+#include <AP_Common/AP_Common.h>
 
 #define AP_LANDINGGEAR_SERVO_RETRACT_PWM_DEFAULT    1250    // default PWM value to move servo to when landing gear is up
 #define AP_LANDINGGEAR_SERVO_DEPLOY_PWM_DEFAULT     1750    // default PWM value to move servo to when landing gear is down
@@ -75,5 +71,3 @@ private:
     /// deploy - deploy the landing gear
     void deploy();
 };
-
-#endif /* AP_LANDINGGEAR_H */

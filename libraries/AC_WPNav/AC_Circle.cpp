@@ -1,10 +1,10 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-#include <AP_HAL.h>
-#include <AC_Circle.h>
+#include <AP_HAL/AP_HAL.h>
+#include "AC_Circle.h"
+#include <AP_Math/AP_Math.h>
 
 extern const AP_HAL::HAL& hal;
 
-const AP_Param::GroupInfo AC_Circle::var_info[] PROGMEM = {
+const AP_Param::GroupInfo AC_Circle::var_info[] = {
     // @Param: RADIUS
     // @DisplayName: Circle Radius
     // @Description: Defines the radius of the circle the vehicle will fly when in Circle flight mode
@@ -30,7 +30,7 @@ const AP_Param::GroupInfo AC_Circle::var_info[] PROGMEM = {
 // Note that the Vector/Matrix constructors already implicitly zero
 // their values.
 //
-AC_Circle::AC_Circle(const AP_InertialNav& inav, const AP_AHRS& ahrs, AC_PosControl& pos_control) :
+AC_Circle::AC_Circle(const AP_InertialNav& inav, const AP_AHRS_View& ahrs, AC_PosControl& pos_control) :
     _inav(inav),
     _ahrs(ahrs),
     _pos_control(pos_control),
@@ -42,6 +42,9 @@ AC_Circle::AC_Circle(const AP_InertialNav& inav, const AP_AHRS& ahrs, AC_PosCont
     _angular_accel(0.0f)
 {
     AP_Param::setup_object_defaults(this, var_info);
+
+    // init flags
+    _flags.panorama = false;
 }
 
 /// init - initialise circle controller setting center specifically
@@ -58,7 +61,7 @@ void AC_Circle::init(const Vector3f& center)
     _pos_control.set_target_to_stopping_point_z();
 
     // calculate velocities
-    calc_velocities();
+    calc_velocities(true);
 
     // set start angle from position
     init_start_angle(false);
@@ -84,10 +87,19 @@ void AC_Circle::init()
     _center.z = stopping_point.z;
 
     // calculate velocities
-    calc_velocities();
+    calc_velocities(true);
 
     // set starting angle from vehicle heading
     init_start_angle(true);
+}
+
+/// set_circle_rate - set circle rate in degrees per second
+void AC_Circle::set_rate(float deg_per_sec)
+{
+    if (!is_equal(deg_per_sec, _rate.get())) {
+        _rate = deg_per_sec;
+        calc_velocities(false);
+    }
 }
 
 /// update - update circle controller
@@ -101,20 +113,17 @@ void AC_Circle::update()
 
         // double check dt is reasonable
         if (dt >= 0.2f) {
-            dt = 0.0;
+            dt = 0.0f;
         }
 
-        // ramp up angular velocity to maximum
-        if (_rate >= 0) {
-            if (_angular_vel < _angular_vel_max) {
-                _angular_vel += _angular_accel * dt;
-                _angular_vel = constrain_float(_angular_vel, 0, _angular_vel_max);
-            }
-        }else{
-            if (_angular_vel > _angular_vel_max) {
-                _angular_vel += _angular_accel * dt;
-                _angular_vel = constrain_float(_angular_vel, _angular_vel_max, 0);
-            }
+        // ramp angular velocity to maximum
+        if (_angular_vel < _angular_vel_max) {
+            _angular_vel += fabsf(_angular_accel) * dt;
+            _angular_vel = MIN(_angular_vel, _angular_vel_max);
+        }
+        if (_angular_vel > _angular_vel_max) {
+            _angular_vel -= fabsf(_angular_accel) * dt;
+            _angular_vel = MAX(_angular_vel, _angular_vel_max);
         }
 
         // update the target angle and total angle traveled
@@ -124,7 +133,7 @@ void AC_Circle::update()
         _angle_total += angle_change;
 
         // if the circle_radius is zero we are doing panorama so no need to update loiter target
-        if (_radius != 0.0f) {
+        if (!is_zero(_radius)) {
             // calculate target position
             Vector3f target;
             target.x = _center.x + _radius * cosf(-_angle);
@@ -132,10 +141,10 @@ void AC_Circle::update()
             target.z = _pos_control.get_alt_target();
 
             // update position controller target
-            _pos_control.set_pos_target(target);
+            _pos_control.set_xy_target(target.x, target.y);
 
             // heading is 180 deg from vehicles target position around circle
-            _yaw = wrap_PI(_angle-PI) * AC_CIRCLE_DEGX100;
+            _yaw = wrap_PI(_angle-M_PI) * AC_CIRCLE_DEGX100;
         }else{
             // set target position to center
             Vector3f target;
@@ -144,14 +153,14 @@ void AC_Circle::update()
             target.z = _pos_control.get_alt_target();
 
             // update position controller target
-            _pos_control.set_pos_target(target);
+            _pos_control.set_xy_target(target.x, target.y);
 
             // heading is same as _angle but converted to centi-degrees
             _yaw = _angle * AC_CIRCLE_DEGX100;
         }
 
         // update position controller
-        _pos_control.update_xy_controller(AC_PosControl::XY_MODE_POS_ONLY, 1.0f);
+        _pos_control.update_xy_controller(AC_PosControl::XY_MODE_POS_ONLY, 1.0f, false);
     }
 }
 
@@ -175,10 +184,10 @@ void AC_Circle::get_closest_point_on_circle(Vector3f &result)
     Vector2f vec;   // vector from circle center to current location
     vec.x = (curr_pos.x - _center.x);
     vec.y = (curr_pos.y - _center.y);
-    float dist = pythagorous2(vec.x, vec.y);
+    float dist = norm(vec.x, vec.y);
 
     // if current location is exactly at the center of the circle return edge directly behind vehicle
-    if (dist == 0) {
+    if (is_zero(dist)) {
         result.x = _center.x - _radius * _ahrs.cos_yaw();
         result.y = _center.y - _radius * _ahrs.sin_yaw();
         result.z = _center.z;
@@ -194,32 +203,28 @@ void AC_Circle::get_closest_point_on_circle(Vector3f &result)
 // calc_velocities - calculate angular velocity max and acceleration based on radius and rate
 //      this should be called whenever the radius or rate are changed
 //      initialises the yaw and current position around the circle
-void AC_Circle::calc_velocities()
+void AC_Circle::calc_velocities(bool init_velocity)
 {
     // if we are doing a panorama set the circle_angle to the current heading
     if (_radius <= 0) {
         _angular_vel_max = ToRad(_rate);
-        _angular_accel = _angular_vel_max;  // reach maximum yaw velocity in 1 second
+        _angular_accel = MAX(fabsf(_angular_vel_max),ToRad(AC_CIRCLE_ANGULAR_ACCEL_MIN));  // reach maximum yaw velocity in 1 second
     }else{
-        // set starting angle to current heading - 180 degrees
-        _angle = wrap_PI(_ahrs.yaw-PI);
-
         // calculate max velocity based on waypoint speed ensuring we do not use more than half our max acceleration for accelerating towards the center of the circle
-        float velocity_max = min(_pos_control.get_speed_xy(), safe_sqrt(0.5f*_pos_control.get_accel_xy()*_radius));
+        float velocity_max = MIN(_pos_control.get_speed_xy(), safe_sqrt(0.5f*_pos_control.get_accel_xy()*_radius));
 
         // angular_velocity in radians per second
         _angular_vel_max = velocity_max/_radius;
         _angular_vel_max = constrain_float(ToRad(_rate),-_angular_vel_max,_angular_vel_max);
 
         // angular_velocity in radians per second
-        _angular_accel = _pos_control.get_accel_xy()/_radius;
-        if (_rate < 0.0f) {
-            _angular_accel = -_angular_accel;
-        }
+        _angular_accel = MAX(_pos_control.get_accel_xy()/_radius, ToRad(AC_CIRCLE_ANGULAR_ACCEL_MIN));
     }
 
     // initialise angular velocity
-    _angular_vel = 0;
+    if (init_velocity) {
+        _angular_vel = 0;
+    }
 }
 
 // init_start_angle - sets the starting angle around the circle and initialises the angle_total
@@ -238,15 +243,15 @@ void AC_Circle::init_start_angle(bool use_heading)
 
     // if use_heading is true
     if (use_heading) {
-        _angle = wrap_PI(_ahrs.yaw-PI);
+        _angle = wrap_PI(_ahrs.yaw-M_PI);
     } else {
         // if we are exactly at the center of the circle, init angle to directly behind vehicle (so vehicle will backup but not change heading)
         const Vector3f &curr_pos = _inav.get_position();
-        if (curr_pos.x == _center.x && curr_pos.y == _center.y) {
-            _angle = wrap_PI(_ahrs.yaw-PI);
+        if (is_equal(curr_pos.x,_center.x) && is_equal(curr_pos.y,_center.y)) {
+            _angle = wrap_PI(_ahrs.yaw-M_PI);
         } else {
             // get bearing from circle center to vehicle in radians
-            float bearing_rad = fast_atan2(curr_pos.y-_center.y,curr_pos.x-_center.x);
+            float bearing_rad = atan2f(curr_pos.y-_center.y,curr_pos.x-_center.x);
             _angle = wrap_PI(bearing_rad);
         }
     }

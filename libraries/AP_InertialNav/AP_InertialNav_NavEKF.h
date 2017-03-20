@@ -1,32 +1,21 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 /*
   A wrapper around the AP_InertialNav class which uses the NavEKF
   filter if available, and falls back to the AP_InertialNav filter
   when EKF is not available
  */
+#pragma once
 
-
-#ifndef __AP_INERTIALNAV_NAVEKF_H__
-#define __AP_INERTIALNAV_NAVEKF_H__
-
-#include <AP_Nav_Common.h>              // definitions shared by inertial and ekf nav filters
+#include <AP_NavEKF/AP_Nav_Common.h>              // definitions shared by inertial and ekf nav filters
 
 class AP_InertialNav_NavEKF : public AP_InertialNav
 {
 public:
     // Constructor
-    AP_InertialNav_NavEKF(AP_AHRS_NavEKF &ahrs, AP_Baro &baro, GPS_Glitch& gps_glitch, Baro_Glitch& baro_glitch) :
-        AP_InertialNav(ahrs, baro, gps_glitch, baro_glitch),
+    AP_InertialNav_NavEKF(AP_AHRS_NavEKF &ahrs) :
+        AP_InertialNav(),
         _haveabspos(false),
         _ahrs_ekf(ahrs)
-        {
-        }
-
-    /**
-     * initializes the object.
-     */
-    void        init();
+        {}
 
     /**
        update internal state
@@ -55,6 +44,12 @@ public:
     const Vector3f&    get_position() const;
 
     /**
+     * get_llh - updates the provided location with the latest calculated location including absolute altitude
+     *  returns true on success (i.e. the EKF knows it's latest position), false on failure
+     */
+    bool get_location(struct Location &loc) const;
+
+    /**
      * get_latitude - returns the latitude of the current position estimation in 100 nano degrees (i.e. degree value multiplied by 10,000,000)
      */
     int32_t     get_latitude() const;
@@ -66,20 +61,6 @@ public:
     int32_t     get_longitude() const;
 
     /**
-     * get_latitude_diff - returns the current latitude difference from the home location.
-     *
-     * @return difference in 100 nano degrees (i.e. degree value multiplied by 10,000,000)
-     */
-    float       get_latitude_diff() const;
-
-    /**
-     * get_longitude_diff - returns the current longitude difference from the home location.
-     *
-     * @return difference in 100 nano degrees (i.e. degree value multiplied by 10,000,000)
-     */
-    float       get_longitude_diff() const;
-
-    /**
      * get_velocity - returns the current velocity in cm/s
      *
      * @return velocity vector:
@@ -88,6 +69,11 @@ public:
      * 				.z : vertical  velocity in cm/s
      */
     const Vector3f&    get_velocity() const;
+
+    /**
+     * get_pos_z_derivative - returns the derivative of the z position in cm/s
+    */
+    float    get_pos_z_derivative() const;
 
     /**
      * get_velocity_xy - returns the current horizontal velocity in cm/s
@@ -103,6 +89,20 @@ public:
     float       get_altitude() const;
 
     /**
+     * getHgtAboveGnd - get latest altitude estimate above ground level in centimetres and validity flag
+     * @return
+     */
+    bool       get_hagl(float &hagl) const;
+
+    /**
+     * get_hgt_ctrl_limit - get maximum height to be observed by the control loops in cm and a validity flag
+     * this is used to limit height during optical flow navigation
+     * it will return invalid when no limiting is required
+     * @return
+     */
+    bool       get_hgt_ctrl_limit(float& limit) const;
+
+    /**
      * get_velocity_z - returns the current climbrate.
      *
      * @see get_velocity().z
@@ -114,9 +114,8 @@ public:
 private:
     Vector3f _relpos_cm;   // NEU
     Vector3f _velocity_cm; // NEU
+    float _pos_z_rate;
     struct Location _abspos;
     bool _haveabspos;
     AP_AHRS_NavEKF &_ahrs_ekf;
 };
-
-#endif // __AP_INERTIALNAV_NAVEKF_H__
