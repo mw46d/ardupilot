@@ -23,6 +23,7 @@
 #include <AP_HAL/Util.h>
 #include <DataFlash/DataFlash.h>
 #include <GCS_MAVLink/GCS.h>
+#include <stdio.h>
 
 #if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_NAVIO || \
     CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BH
@@ -118,7 +119,7 @@ AP_GPS_UBLOX::_request_next_config(void)
         }
         break;
     case STEP_POLL_NAV:
-        if (!_send_message(CLASS_CFG, MSG_CFG_NAV_SETTINGS, nullptr, 0)) {
+        if (!_send_message(CLASS_CFG, MSG_CFG_NAV5, nullptr, 0)) {
             _next_message--;
         }
         break;
@@ -175,7 +176,7 @@ AP_GPS_UBLOX::_request_next_config(void)
             _next_message--;
         }
 #else
-        _unconfigured_messages & = ~CONFIG_RATE_RAW;
+        _unconfigured_messages &= ~CONFIG_RATE_RAW;
 #endif
         break;
     case STEP_RAWX:
@@ -186,7 +187,7 @@ AP_GPS_UBLOX::_request_next_config(void)
             _next_message--;
         }
 #else
-        _unconfigured_messages & = ~CONFIG_RATE_RAW;
+        _unconfigured_messages &= ~CONFIG_RATE_RAW;
 #endif
         break;
     case STEP_VERSION:
@@ -624,7 +625,7 @@ AP_GPS_UBLOX::_parse_gps(void)
                     // the actual ack we will catch it next time through the poll loop, but that
                     // will be a good chunk of time later.
                     break;
-                case MSG_CFG_NAV_SETTINGS:
+                case MSG_CFG_NAV5:
                     _unconfigured_messages &= ~CONFIG_NAV_SETTINGS;
                     break;
                 case MSG_CFG_RATE:
@@ -653,7 +654,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
     if (_class == CLASS_CFG) {
         switch(_msg_id) {
-        case  MSG_CFG_NAV_SETTINGS:
+        case  MSG_CFG_NAV5:
 	    Debug("Got settings %u min_elev %d drLimit %u\n", 
                   (unsigned)_buffer.nav_settings.dynModel,
                   (int)_buffer.nav_settings.minElev,
@@ -674,8 +675,12 @@ AP_GPS_UBLOX::_parse_gps(void)
                 _buffer.nav_settings.minElev = gps._min_elevation;
                 _buffer.nav_settings.mask |= 2;
             }
+            // MARCO
+            _buffer.nav_settings.fixMode = 3;
+            _buffer.nav_settings.mask |= 4;
+
             if (_buffer.nav_settings.mask != 0) {
-                _send_message(CLASS_CFG, MSG_CFG_NAV_SETTINGS,
+                _send_message(CLASS_CFG, MSG_CFG_NAV5,
                               &_buffer.nav_settings,
                               sizeof(_buffer.nav_settings));
                 _unconfigured_messages |= CONFIG_NAV_SETTINGS;
@@ -705,6 +710,7 @@ AP_GPS_UBLOX::_parse_gps(void)
                 }
 #endif
 
+                /* MARCO
                 for(int i = 0; i < UBLOX_MAX_GNSS_CONFIG_BLOCKS; i++) {
                     if((gps._gnss_mode[state.instance] & (1 << i)) && i != GNSS_SBAS) {
                         gnssCount++;
@@ -728,7 +734,50 @@ AP_GPS_UBLOX::_parse_gps(void)
                         _buffer.gnss.configBlock[i].flags = _buffer.gnss.configBlock[i].flags & 0xFFFFFFFE;
                     }
                 }
-                if (!memcmp(&start_gnss, &_buffer.gnss, sizeof(start_gnss))) {
+                */
+
+                union {
+                    uint32_t u32;
+                    uint8_t a8[4];
+                } mw1;
+
+                _buffer.gnss.msgVer = 0;
+                _buffer.gnss.numTrkChHw = 32;
+                _buffer.gnss.numTrkChUse = 32;
+                _buffer.gnss.numConfigBlocks = 5;
+
+                _buffer.gnss.configBlock[0].gnssId = 0;
+                _buffer.gnss.configBlock[0].resTrkCh = 8;
+                _buffer.gnss.configBlock[0].maxTrkCh = 16;
+                mw1.a8[0] = 1; mw1.a8[1] = 0; mw1.a8[2] = 1; mw1.a8[3] = 1;
+                _buffer.gnss.configBlock[0].flags = mw1.u32;
+
+                _buffer.gnss.configBlock[1].gnssId = 1;
+                _buffer.gnss.configBlock[1].resTrkCh = 1;
+                _buffer.gnss.configBlock[1].maxTrkCh = 3;
+                mw1.a8[0] = 1; mw1.a8[1] = 0; mw1.a8[2] = 1; mw1.a8[3] = 1;
+                _buffer.gnss.configBlock[1].flags = mw1.u32;
+
+                _buffer.gnss.configBlock[2].gnssId = 3;
+                _buffer.gnss.configBlock[2].resTrkCh = 8;
+                _buffer.gnss.configBlock[2].maxTrkCh = 16;
+                mw1.a8[0] = 0; mw1.a8[1] = 0; mw1.a8[2] = 1; mw1.a8[3] = 1;
+                _buffer.gnss.configBlock[2].flags = mw1.u32;
+
+                _buffer.gnss.configBlock[3].gnssId = 5;
+                _buffer.gnss.configBlock[3].resTrkCh = 0;
+                _buffer.gnss.configBlock[3].maxTrkCh = 3;
+                mw1.a8[0] = 1; mw1.a8[1] = 0; mw1.a8[2] = 1; mw1.a8[3] = 1;
+                _buffer.gnss.configBlock[3].flags = mw1.u32;
+
+                _buffer.gnss.configBlock[4].gnssId = 6;
+                _buffer.gnss.configBlock[4].resTrkCh = 8;
+                _buffer.gnss.configBlock[4].maxTrkCh = 14;
+                mw1.a8[0] = 1; mw1.a8[1] = 0; mw1.a8[2] = 1; mw1.a8[3] = 1;
+                _buffer.gnss.configBlock[4].flags = mw1.u32;
+
+
+                if (memcmp(&start_gnss, &_buffer.gnss, sizeof(start_gnss)) != 0) {
                     _send_message(CLASS_CFG, MSG_CFG_GNSS, &_buffer.gnss, 4 + (8 * _buffer.gnss.numConfigBlocks));
                     _unconfigured_messages |= CONFIG_GNSS;
                     _cfg_needs_save = true;
@@ -743,6 +792,12 @@ AP_GPS_UBLOX::_parse_gps(void)
 
         case MSG_CFG_SBAS:
             if (gps._sbas_mode != 2) {
+                struct ubx_cfg_sbas start_sbas = _buffer.sbas;
+                union {
+                    uint32_t u32;
+                    uint8_t a8[4];
+                } mw1;
+
 	        Debug("Got SBAS settings %u %u %u 0x%x 0x%x\n", 
                       (unsigned)_buffer.sbas.mode,
                       (unsigned)_buffer.sbas.usage,
@@ -750,30 +805,25 @@ AP_GPS_UBLOX::_parse_gps(void)
                       (unsigned)_buffer.sbas.scanmode2,
                       (unsigned)_buffer.sbas.scanmode1);
                 // MARCO - set the SBAS values
-                // if (_buffer.sbas.mode != gps._sbas_mode) {
-                {
-                    union {
-                        uint32_t u32;
-                        uint8_t a8[4];
-                    } mw1;
-                    _buffer.sbas.mode = gps._sbas_mode;
-                    _buffer.sbas.usage = 0x03;
-                    _buffer.sbas.maxSBAS = 3;
-                    _buffer.sbas.scanmode2 = 0x0;
-                    mw1.a8[0] = 0xd1;
-                    mw1.a8[1] = 0xa2;
-                    mw1.a8[2] = 0x06;
-                    mw1.a8[3] = 0x00;
-                    _buffer.sbas.scanmode1 = mw1.u32;
+                _buffer.sbas.mode = gps._sbas_mode;
+                _buffer.sbas.usage = 0x03;
+                _buffer.sbas.maxSBAS = 3;
+                _buffer.sbas.scanmode2 = 0x0;
+                mw1.a8[0] = 0xd1;
+                mw1.a8[1] = 0xa2;
+                mw1.a8[2] = 0x06;
+                mw1.a8[3] = 0x00;
+                _buffer.sbas.scanmode1 = mw1.u32;
+                if (memcmp(&start_sbas, &_buffer.sbas, sizeof(start_sbas)) != 0) {
                     _send_message(CLASS_CFG, MSG_CFG_SBAS,
                                   &_buffer.sbas,
                                   sizeof(_buffer.sbas));
                     _unconfigured_messages |= CONFIG_SBAS;
                     _cfg_needs_save = true;
                 }
-                // } else {
-                //     _unconfigured_messages &= ~CONFIG_SBAS;
-                // }
+                else {
+                    _unconfigured_messages &= ~CONFIG_SBAS;
+                }
             } else {
                     _unconfigured_messages &= ~CONFIG_SBAS;
             }
@@ -1142,6 +1192,20 @@ AP_GPS_UBLOX::_send_message(uint8_t msg_class, uint8_t msg_id, void *msg, uint16
     header.msg_class = msg_class;
     header.msg_id    = msg_id;
     header.length    = size;
+
+/*
+    char mw_buf[256];
+    uint8_t mw_i;
+
+    mw_i = sprintf(mw_buf, "UBLOX %02x%02x%02x%02x", msg_class, msg_id, size & 0xff, (size >> 8) & 0xff);
+    for (uint8_t i = 0; i < size && i < 60; i++) {
+        mw_i += sprintf(mw_buf + mw_i, "%02x", ((uint8_t *)msg)[i]);
+    }
+    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "%.200s", mw_buf);
+    if (gps._DataFlash != nullptr  && gps._DataFlash->logging_started()) {
+        gps._DataFlash->Log_Write_Message(mw_buf);
+    }
+*/
 
     _update_checksum((uint8_t *)&header.msg_class, sizeof(header)-2, ck_a, ck_b);
     _update_checksum((uint8_t *)msg, size, ck_a, ck_b);
