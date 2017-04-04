@@ -788,12 +788,16 @@ Format characters in the format string for binary log messages
       "GPS2", "QBIHBcLLefffB", "TimeUS,Status,GMS,GWk,NSats,HDop,Lat,Lng,Alt,Spd,GCrs,VZ,U" }, \
     { LOG_GPSB_MSG, sizeof(log_GPS), \
       "GPSB", "QBIHBcLLefffB", "TimeUS,Status,GMS,GWk,NSats,HDop,Lat,Lng,Alt,Spd,GCrs,VZ,U" }, \
+    { LOG_GPS4_MSG, sizeof(log_GPS), \
+      "GPS4", "QBIHBcLLefffB", "TimeUS,Status,GMS,GWk,NSats,HDop,Lat,Lng,Alt,Spd,GCrs,VZ,U" }, \
     { LOG_GPA_MSG,  sizeof(log_GPA), \
       "GPA",  "QCCCCBI", "TimeUS,VDop,HAcc,VAcc,SAcc,VV,SMS" }, \
     { LOG_GPA2_MSG, sizeof(log_GPA), \
       "GPA2", "QCCCCBI", "TimeUS,VDop,HAcc,VAcc,SAcc,VV,SMS" }, \
     { LOG_GPAB_MSG, sizeof(log_GPA), \
       "GPAB", "QCCCCBI", "TimeUS,VDop,HAcc,VAcc,SAcc,VV,SMS" }, \
+    { LOG_GPA4_MSG, sizeof(log_GPA), \
+      "GPA4", "QCCCCBI", "TimeUS,VDop,HAcc,VAcc,SAcc,VV,SMS" }, \
     { LOG_IMU_MSG, sizeof(log_IMU), \
       "IMU",  "QffffffIIfBB",     "TimeUS,GyrX,GyrY,GyrZ,AccX,AccY,AccZ,ErrG,ErrA,Temp,GyHlt,AcHlt" }, \
     { LOG_MESSAGE_MSG, sizeof(log_Message), \
@@ -895,6 +899,10 @@ Format characters in the format string for binary log messages
       "UBY1", "QBHBBH",  "TimeUS,Instance,noisePerMS,jamInd,aPower,agcCnt" }, \
     { LOG_GPS2_UBX2_MSG, sizeof(log_Ubx2), \
       "UBY2", "QBbBbB", "TimeUS,Instance,ofsI,magI,ofsQ,magQ" }, \
+    { LOG_GPS3_UBX1_MSG, sizeof(log_Ubx1), \
+      "UBZ1", "QBHBBH",  "TimeUS,Instance,noisePerMS,jamInd,aPower,agcCnt" }, \
+    { LOG_GPS3_UBX2_MSG, sizeof(log_Ubx2), \
+      "UBZ2", "QBbBbB", "TimeUS,Instance,ofsI,magI,ofsQ,magQ" }, \
     { LOG_GPS_RAW_MSG, sizeof(log_GPS_RAW), \
       "GRAW", "QIHBBddfBbB", "TimeUS,WkMS,Week,numSV,sv,cpMes,prMes,doMes,mesQI,cno,lli" }, \
     { LOG_GPS_RAWH_MSG, sizeof(log_GPS_RAWH), \
@@ -995,6 +1003,7 @@ enum LogMessages {
     LOG_GPS_MSG,
     LOG_GPS2_MSG,
     LOG_GPSB_MSG,
+    LOG_GPS4_MSG,
     LOG_IMU_MSG,
     LOG_MESSAGE_MSG,
     LOG_RCIN_MSG,
@@ -1015,6 +1024,8 @@ enum LogMessages {
     LOG_GPS_UBX2_MSG,
     LOG_GPS2_UBX1_MSG,
     LOG_GPS2_UBX2_MSG,
+    LOG_GPS3_UBX1_MSG,
+    LOG_GPS3_UBX2_MSG,
     LOG_ESC1_MSG,
     LOG_ESC2_MSG,
     LOG_ESC3_MSG,
@@ -1058,6 +1069,7 @@ enum LogMessages {
     LOG_GPA_MSG,
     LOG_GPA2_MSG,
     LOG_GPAB_MSG,
+    LOG_GPA4_MSG,
     LOG_RFND_MSG,
     LOG_BAR3_MSG,
     LOG_NKF1_MSG,
