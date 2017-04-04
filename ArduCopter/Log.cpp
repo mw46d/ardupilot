@@ -59,7 +59,6 @@ bool Copter::print_log_menu(void)
     return(true);
 }
 
-#if CLI_ENABLED == ENABLED
 int8_t Copter::dump_log(uint8_t argc, const Menu::arg *argv)
 {
     int16_t dump_log_num;
@@ -85,7 +84,6 @@ int8_t Copter::dump_log(uint8_t argc, const Menu::arg *argv)
     Log_Read((uint16_t)dump_log_num, dump_log_start, dump_log_end);
     return (0);
 }
-#endif
 
 int8_t Copter::erase_logs(uint8_t argc, const Menu::arg *argv)
 {
@@ -351,6 +349,7 @@ struct PACKED log_Performance {
     uint8_t i2c_lockup_count;
     uint16_t ins_error_count;
     uint32_t log_dropped;
+    uint32_t mem_avail;
 };
 
 // Write a performance monitoring packet
@@ -366,6 +365,7 @@ void Copter::Log_Write_Performance()
         i2c_lockup_count : 0,
         ins_error_count  : ins.error_count(),
         log_dropped      : DataFlash.num_dropped() - perf_info_get_num_dropped(),
+        hal.util->available_memory()
     };
     DataFlash.WriteCriticalBlock(&pkt, sizeof(pkt));
 }
@@ -880,7 +880,7 @@ const struct LogStructure Copter::log_structure[] = {
     { LOG_CONTROL_TUNING_MSG, sizeof(log_Control_Tuning),
       "CTUN", "Qffffffeccfhh", "TimeUS,ThI,ABst,ThO,ThH,DAlt,Alt,BAlt,DSAlt,SAlt,TAlt,DCRt,CRt" },
     { LOG_PERFORMANCE_MSG, sizeof(log_Performance), 
-      "PM",  "QHHIhBHI",    "TimeUS,NLon,NLoop,MaxT,PMT,I2CErr,INSErr,LogDrop" },
+      "PM",  "QHHIhBHII",    "TimeUS,NLon,NLoop,MaxT,PMT,I2CErr,INSErr,LogDrop,Mem" },
     { LOG_MOTBATT_MSG, sizeof(log_MotBatt),
       "MOTB", "Qffff",  "TimeUS,LiftMax,BatVolt,BatRes,ThLimit" },
     { LOG_EVENT_MSG, sizeof(log_Event),         

@@ -337,7 +337,8 @@ void GCS_MAVLINK::handle_mission_request(AP_Mission &mission, mavlink_message_t 
         mavlink_mission_request_t packet;
         mavlink_msg_mission_request_decode(msg, &packet);
 
-        if (packet.seq >= mission.num_commands()) {
+        if (packet.seq != 0 && // always allow HOME to be read
+            packet.seq >= mission.num_commands()) {
             // try to educate the GCS on the actual size of the mission:
             mavlink_msg_mission_count_send(chan,msg->sysid, msg->compid, mission.num_commands());
             goto mission_item_send_failed;
@@ -760,7 +761,6 @@ void GCS_MAVLINK::handle_radio_status(mavlink_message_t *msg, DataFlash_Class &d
         dataflash.Log_Write_Radio(packet);
     }
 }
-
 
 /*
   handle an incoming mission item
@@ -1830,6 +1830,35 @@ uint8_t GCS_MAVLINK::handle_rc_bind(const mavlink_command_long_t &packet)
 }
 
 /*
+  return a timesync request
+  Sends back ts1 as received, and tc1 is the local timestamp in usec
+ */
+void GCS_MAVLINK::handle_timesync(mavlink_message_t *msg)
+{
+    // decode incoming timesync message
+    mavlink_timesync_t tsync;
+    mavlink_msg_timesync_decode(msg, &tsync);
+
+    // ignore messages in which tc1 field (timestamp 1) has already been filled in
+    if (tsync.tc1 != 0) {
+        return;
+    }
+
+    // create new timesync struct with tc1 field as system time in nanoseconds
+    mavlink_timesync_t rsync;
+    rsync.tc1 = AP_HAL::micros64() * 1000;
+    rsync.ts1 = tsync.ts1;
+
+    // respond with a timesync message
+    mavlink_msg_timesync_send(
+        chan,
+        rsync.tc1,
+        rsync.ts1
+        );
+}
+
+
+/*
   handle messages which don't require vehicle specific data
  */
 void GCS_MAVLINK::handle_common_message(mavlink_message_t *msg)
@@ -1846,6 +1875,9 @@ void GCS_MAVLINK::handle_common_message(mavlink_message_t *msg)
         break;
     case MAVLINK_MSG_ID_DEVICE_OP_WRITE:
         handle_device_op_write(msg);
+        break;
+    case MAVLINK_MSG_ID_TIMESYNC:
+        handle_timesync(msg);
         break;
     }
 }

@@ -10,6 +10,7 @@
 #include "AP_Compass_BMM150.h"
 #include "AP_Compass_HIL.h"
 #include "AP_Compass_HMC5843.h"
+#include "AP_Compass_IST8310.h"
 #include "AP_Compass_LSM303D.h"
 #include "AP_Compass_LSM9DS1.h"
 #include "AP_Compass_PX4.h"
@@ -25,6 +26,10 @@ extern AP_HAL::HAL& hal;
 #define COMPASS_LEARN_DEFAULT Compass::LEARN_NONE
 #else
 #define COMPASS_LEARN_DEFAULT Compass::LEARN_INTERNAL
+#endif
+
+#ifndef AP_COMPASS_OFFSETS_MAX_DEFAULT
+#define AP_COMPASS_OFFSETS_MAX_DEFAULT 600
 #endif
 
 const AP_Param::GroupInfo Compass::var_info[] = {
@@ -403,6 +408,14 @@ const AP_Param::GroupInfo Compass::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("CAL_FIT", 30, Compass, _calibration_threshold, AP_COMPASS_CALIBRATION_FITNESS_DEFAULT),
 
+    // @Param: OFFS_MAX
+    // @DisplayName: Compass maximum offset
+    // @Description: This sets the maximum allowed compass offset in calibration and arming checks
+    // @Range: 500 3000
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("OFFS_MAX", 31, Compass, _offset_max, AP_COMPASS_OFFSETS_MAX_DEFAULT),
+    
     AP_GROUPEND
 };
 
@@ -517,7 +530,6 @@ void Compass::_detect_backends(void)
         ADD_BACKEND(AP_Compass_HMC5843::probe(*this, hal.i2c_mgr->get_device(0, HAL_COMPASS_HMC5843_I2C_ADDR),
                                               both_i2c_external, both_i2c_external?ROTATION_ROLL_180:ROTATION_YAW_270),
                     AP_Compass_HMC5843::name, both_i2c_external);
-
 #if !HAL_MINIMIZE_FEATURES
 #if 0
         // lis3mdl - this is disabled for now due to an errata on pixhawk2 GPS unit, pending investigation
@@ -540,6 +552,12 @@ void Compass::_detect_backends(void)
         }
         break;
 
+    case AP_BoardConfig::PX4_BOARD_AEROFC:
+#ifdef HAL_COMPASS_IST8310_I2C_BUS
+        ADD_BACKEND(AP_Compass_IST8310::probe(*this, hal.i2c_mgr->get_device(HAL_COMPASS_IST8310_I2C_BUS, HAL_COMPASS_IST8310_I2C_ADDR),
+                                              ROTATION_PITCH_180_YAW_90), AP_Compass_IST8310::name, true);
+#endif
+        break;
     default:
         break;
     }

@@ -28,7 +28,6 @@ public:
     void control_auto(const Location &loc);
     bool init_mode(void);
     bool setup(void);
-    void setup_defaults(void);
 
     void vtol_position_controller(void);
     void setup_target_position(void);
@@ -122,6 +121,8 @@ private:
     AP_Int8 frame_type;
     
     AP_MotorsMulticopter *motors;
+    const struct AP_Param::GroupInfo *motors_var_info;
+    
     AC_AttitudeControl_Multi *attitude_control;
     AC_PosControl *pos_control;
     AC_WPNav *wp_nav;
@@ -194,6 +195,9 @@ private:
     void check_throttle_suppression(void);
 
     void run_z_controller(void);
+
+    void setup_defaults(void);
+    void setup_defaults_table(const struct defaults_struct *defaults, uint8_t count);
     
     AP_Int16 transition_time_ms;
 

@@ -254,6 +254,8 @@ protected:
 
     void handle_device_op_read(mavlink_message_t *msg);
     void handle_device_op_write(mavlink_message_t *msg);
+
+    void handle_timesync(mavlink_message_t *msg);
     
 private:
 

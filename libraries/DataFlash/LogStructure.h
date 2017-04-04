@@ -191,6 +191,7 @@ struct PACKED log_BARO {
     float   climbrate;
     uint32_t sample_time_ms;
     float   drift_offset;
+    float   ground_temp;
 };
 
 struct PACKED log_AHRS {
@@ -809,7 +810,7 @@ Format characters in the format string for binary log messages
     { LOG_RSSI_MSG, sizeof(log_RSSI), \
       "RSSI",  "Qf",     "TimeUS,RXRSSI" }, \
     { LOG_BARO_MSG, sizeof(log_BARO), \
-      "BARO",  "QffcfIf", "TimeUS,Alt,Press,Temp,CRt,SMS,Offset" }, \
+      "BARO",  "QffcfIff", "TimeUS,Alt,Press,Temp,CRt,SMS,Offset,GndTemp" }, \
     { LOG_POWR_MSG, sizeof(log_POWR), \
       "POWR","QffH","TimeUS,Vcc,VServo,Flags" },  \
     { LOG_CMD_MSG, sizeof(log_Cmd), \
@@ -956,9 +957,9 @@ Format characters in the format string for binary log messages
     { LOG_PIDL_MSG, sizeof(log_PID), \
       "PIDL", "Qffffff",  "TimeUS,Des,P,I,D,FF,AFF" }, \
     { LOG_BAR2_MSG, sizeof(log_BARO), \
-      "BAR2",  "QffcfIf", "TimeUS,Alt,Press,Temp,CRt,SMS,Offset" }, \
+      "BAR2",  "QffcfIff", "TimeUS,Alt,Press,Temp,CRt,SMS,Offset,GndTemp" }, \
     { LOG_BAR3_MSG, sizeof(log_BARO), \
-      "BAR3",  "QffcfIf", "TimeUS,Alt,Press,Temp,CRt,SMS,Offset" }, \
+      "BAR3",  "QffcfIff", "TimeUS,Alt,Press,Temp,CRt,SMS,Offset,GndTemp" }, \
     { LOG_VIBE_MSG, sizeof(log_Vibe), \
       "VIBE", "QfffIII",     "TimeUS,VibeX,VibeY,VibeZ,Clip0,Clip1,Clip2" }, \
     { LOG_IMUDT_MSG, sizeof(log_IMUDT), \

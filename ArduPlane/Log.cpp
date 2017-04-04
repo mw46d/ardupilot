@@ -162,7 +162,11 @@ void Plane::Log_Write_Attitude(void)
     targets.y = nav_pitch_cd;
     targets.z = 0;          //Plane does not have the concept of navyaw. This is a placeholder.
 
-    DataFlash.Log_Write_Attitude(ahrs, targets);
+    if (quadplane.tailsitter_active()) {
+        DataFlash.Log_Write_AttitudeView(*quadplane.ahrs_view, targets);
+    } else {
+        DataFlash.Log_Write_Attitude(ahrs, targets);
+    }
     if (quadplane.in_vtol_mode() || quadplane.in_assisted_flight()) {
         // log quadplane PIDs separately from fixed wing PIDs
         DataFlash.Log_Write_PID(LOG_PIQR_MSG, quadplane.attitude_control->get_rate_roll_pid().get_pid_info());
@@ -214,6 +218,7 @@ struct PACKED log_Performance {
     uint32_t g_dt_max;
     uint32_t g_dt_min;
     uint32_t log_dropped;
+    uint32_t mem_avail;
 };
 
 // Write a performance monitoring packet. Total length : 19 bytes
@@ -226,7 +231,8 @@ void Plane::Log_Write_Performance()
         main_loop_count : perf.mainLoop_count,
         g_dt_max        : perf.G_Dt_max,
         g_dt_min        : perf.G_Dt_min,
-        log_dropped     : DataFlash.num_dropped() - perf.last_log_dropped
+        log_dropped     : DataFlash.num_dropped() - perf.last_log_dropped,
+        hal.util->available_memory()
     };
     DataFlash.WriteCriticalBlock(&pkt, sizeof(pkt));
 }
@@ -480,7 +486,7 @@ void Plane::Log_Write_Home_And_Origin()
 const struct LogStructure Plane::log_structure[] = {
     LOG_COMMON_STRUCTURES,
     { LOG_PERFORMANCE_MSG, sizeof(log_Performance), 
-      "PM",  "QHHIII",  "TimeUS,NLon,NLoop,MaxT,MinT,LogDrop" },
+      "PM",  "QHHIIII",  "TimeUS,NLon,NLoop,MaxT,MinT,LogDrop,Mem" },
     { LOG_STARTUP_MSG, sizeof(log_Startup),         
       "STRT", "QBH",         "TimeUS,SType,CTot" },
     { LOG_CTUN_MSG, sizeof(log_Control_Tuning),     

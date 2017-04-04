@@ -32,9 +32,9 @@ public:
     // initialisation
     void Init() override;
 
-    bool logging_started() { return _logging_started; }
+    bool logging_started() const override { return _logging_started; }
 
-    void stop_logging();
+    void stop_logging() override;
 
     /* Write a block of data at current offset */
     bool WritePrioritisedBlock(const void *pBuffer, uint16_t size,
@@ -64,13 +64,6 @@ public:
     void ShowDeviceInfo(AP_HAL::BetterStream *port) override {}
     void ListAvailableLogs(AP_HAL::BetterStream *port) override {}
 
-    // enum dm_block_state {
-    //     BLOCK_STATE_FREE = 17,
-    //     BLOCK_STATE_FILLING,
-    //     BLOCK_STATE_SEND_PENDING,
-    //     BLOCK_STATE_SEND_RETRY,
-    //     BLOCK_STATE_SENT
-    // };
     struct dm_block {
         uint32_t seqno;
         uint8_t buf[MAVLINK_MSG_REMOTE_LOG_DATA_BLOCK_FIELD_DATA_LEN];
@@ -78,12 +71,12 @@ public:
         struct dm_block *next;
     };
     void push_log_blocks();
-    virtual bool send_log_block(struct dm_block &block);
-    virtual void handle_ack(mavlink_channel_t chan, mavlink_message_t* msg, uint32_t seqno);
-    virtual void handle_retry(uint32_t block_num);
+    bool send_log_block(struct dm_block &block);
+    void handle_ack(mavlink_channel_t chan, mavlink_message_t* msg, uint32_t seqno);
+    void handle_retry(uint32_t block_num);
     void do_resends(uint32_t now);
-    virtual void set_channel(mavlink_channel_t chan);
-    virtual void remote_log_block_status_msg(mavlink_channel_t chan, mavlink_message_t* msg) override;
+    void set_channel(mavlink_channel_t chan);
+    void remote_log_block_status_msg(mavlink_channel_t chan, mavlink_message_t* msg) override;
     void free_all_blocks();
 
     // a stack for free blocks, queues for pending, sent, retries and sent
@@ -126,8 +119,8 @@ protected:
     } stats;
 
     // this method is used when reporting system status over mavlink
-    bool logging_enabled() const { return true; }
-    bool logging_failed() const;
+    bool logging_enabled() const override { return true; }
+    bool logging_failed() const override;
 
 private:
     mavlink_channel_t _chan;
@@ -166,9 +159,9 @@ private:
     struct dm_block *_current_block;
     struct dm_block *next_block();
 
-    void periodic_10Hz(uint32_t now);
-    void periodic_1Hz(uint32_t now);
-    void periodic_fullrate(uint32_t now);
+    void periodic_10Hz(uint32_t now) override;
+    void periodic_1Hz(uint32_t now) override;
+    void periodic_fullrate(uint32_t now) override;
     
     void stats_init();
     void stats_reset();

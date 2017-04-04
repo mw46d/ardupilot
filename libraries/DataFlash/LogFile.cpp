@@ -20,61 +20,6 @@
 
 extern const AP_HAL::HAL& hal;
 
-void DataFlash_Class::Init(const struct LogStructure *structures, uint8_t num_types)
-{
-    if (_next_backend == DATAFLASH_MAX_BACKENDS) {
-        AP_HAL::panic("Too many backends");
-        return;
-    }
-    _num_types = num_types;
-    _structures = structures;
-
-#if defined(HAL_BOARD_LOG_DIRECTORY)
-    if (_params.backend_types == DATAFLASH_BACKEND_FILE ||
-        _params.backend_types == DATAFLASH_BACKEND_BOTH) {
-        DFMessageWriter_DFLogStart *message_writer =
-            new DFMessageWriter_DFLogStart(_firmware_string);
-        if (message_writer != nullptr)  {
-#if HAL_OS_POSIX_IO
-            backends[_next_backend] = new DataFlash_File(*this,
-                                                         message_writer,
-                                                         HAL_BOARD_LOG_DIRECTORY);
-#endif
-        }
-        if (backends[_next_backend] == nullptr) {
-            hal.console->printf("Unable to open DataFlash_File");
-        } else {
-            _next_backend++;
-        }
-    }
-#endif
-
-#if DATAFLASH_MAVLINK_SUPPORT
-    if (_params.backend_types == DATAFLASH_BACKEND_MAVLINK ||
-        _params.backend_types == DATAFLASH_BACKEND_BOTH) {
-        if (_next_backend == DATAFLASH_MAX_BACKENDS) {
-            AP_HAL::panic("Too many backends");
-            return;
-        }
-        DFMessageWriter_DFLogStart *message_writer =
-            new DFMessageWriter_DFLogStart(_firmware_string);
-        if (message_writer != nullptr)  {
-            backends[_next_backend] = new DataFlash_MAVLink(*this,
-                                                            message_writer);
-        }
-        if (backends[_next_backend] == nullptr) {
-            hal.console->printf("Unable to open DataFlash_MAVLink");
-        } else {
-            _next_backend++;
-        }
-    }
-#endif
-
-    for (uint8_t i=0; i<_next_backend; i++) {
-        backends[i]->Init();
-    }
-}
-
 // This function determines the number of whole or partial log files in the DataFlash
 // Wholly overwritten files are (of course) lost.
 uint16_t DataFlash_Block::get_num_logs(void)
@@ -829,6 +774,7 @@ void DataFlash_Class::Log_Write_Baro(AP_Baro &baro, uint64_t time_us)
     }
     float climbrate = baro.get_climb_rate();
     float drift_offset = baro.get_baro_drift_offset();
+    float ground_temp = baro.get_ground_temperature();
     struct log_BARO pkt = {
         LOG_PACKET_HEADER_INIT(LOG_BARO_MSG),
         time_us       : time_us,
@@ -838,6 +784,7 @@ void DataFlash_Class::Log_Write_Baro(AP_Baro &baro, uint64_t time_us)
         climbrate     : climbrate,
         sample_time_ms: baro.get_last_update(0),
         drift_offset  : drift_offset,
+        ground_temp   : ground_temp,
     };
     WriteBlock(&pkt, sizeof(pkt));
 
@@ -851,6 +798,7 @@ void DataFlash_Class::Log_Write_Baro(AP_Baro &baro, uint64_t time_us)
             climbrate     : climbrate,
             sample_time_ms: baro.get_last_update(1),
             drift_offset  : drift_offset,
+            ground_temp   : ground_temp,
         };
         WriteBlock(&pkt2, sizeof(pkt2));
     }
@@ -865,6 +813,7 @@ void DataFlash_Class::Log_Write_Baro(AP_Baro &baro, uint64_t time_us)
             climbrate     : climbrate,
             sample_time_ms: baro.get_last_update(2),
             drift_offset  : drift_offset,
+            ground_temp   : ground_temp,
         };
         WriteBlock(&pkt3, sizeof(pkt3));
     }
@@ -1812,6 +1761,24 @@ void DataFlash_Class::Log_Write_Trigger(const AP_AHRS &ahrs, const AP_GPS &gps, 
 
 // Write an attitude packet
 void DataFlash_Class::Log_Write_Attitude(AP_AHRS &ahrs, const Vector3f &targets)
+{
+    struct log_Attitude pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_ATTITUDE_MSG),
+        time_us         : AP_HAL::micros64(),
+        control_roll    : (int16_t)targets.x,
+        roll            : (int16_t)ahrs.roll_sensor,
+        control_pitch   : (int16_t)targets.y,
+        pitch           : (int16_t)ahrs.pitch_sensor,
+        control_yaw     : (uint16_t)targets.z,
+        yaw             : (uint16_t)ahrs.yaw_sensor,
+        error_rp        : (uint16_t)(ahrs.get_error_rp() * 100),
+        error_yaw       : (uint16_t)(ahrs.get_error_yaw() * 100)
+    };
+    WriteBlock(&pkt, sizeof(pkt));
+}
+
+// Write an attitude packet
+void DataFlash_Class::Log_Write_AttitudeView(AP_AHRS_View &ahrs, const Vector3f &targets)
 {
     struct log_Attitude pkt = {
         LOG_PACKET_HEADER_INIT(LOG_ATTITUDE_MSG),
