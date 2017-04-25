@@ -284,7 +284,8 @@ void Rover::set_mode(enum mode mode)
     control_mode = mode;
     throttle_last = 0;
     // MARCO throttle = 500;
-    throttle = 0;
+    throttle = SRV_Channels::get_output_norm(SRV_Channel::k_throttle) * 1000.0;
+
     if (!in_auto_reverse) {
         set_reverse(false);
     }
