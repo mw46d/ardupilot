@@ -134,6 +134,27 @@ void Rover::read_trim_switch()
         }
         break;
     }
+
+    // MARCO read ch6 to switch the relays/sound for now
+    {
+        RC_Channel *channel_relay = RC_Channels::rc_channel(5);
+
+        static bool state = false;
+        static int relay_state = 0;
+
+        if (channel_relay->get_radio_in() > CH_7_PWM_TRIGGER) {
+            if (!state) {
+                state = true;
+                relay_state = (relay_state + 1) % 3;
+
+                ServoRelayEvents.do_set_relay(0, (relay_state & 0x01) != 0);
+                ServoRelayEvents.do_set_relay(1, (relay_state & 0x02) != 0);
+            }
+        }
+        else {
+            state = false;
+        }
+    }
 }
 
 bool Rover::motor_active()
