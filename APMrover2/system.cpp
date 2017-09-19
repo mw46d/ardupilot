@@ -284,7 +284,14 @@ void Rover::set_mode(enum mode mode)
     control_mode = mode;
     throttle_last = 0;
     // MARCO throttle = 500;
-    throttle = SRV_Channels::get_output_norm(SRV_Channel::k_throttle) * 1000.0;
+    throttle = (int16_t)(SRV_Channels::get_output_norm(SRV_Channel::k_throttle) * 1000.0);
+    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "mw swt mode to %d  rcout_tr= %d  min_tr= %d", control_mode, throttle, (g.throttle_min * 10));
+    if (throttle < g.throttle_min * 10) {
+        throttle = g.throttle_min * 10;
+    }
+    if (throttle < 0) {
+        throttle = 0;
+    }
 
     if (!in_auto_reverse) {
         set_reverse(false);
