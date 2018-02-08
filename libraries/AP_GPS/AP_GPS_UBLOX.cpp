@@ -697,7 +697,7 @@ AP_GPS_UBLOX::_parse_gps(void)
         case MSG_CFG_GNSS:
             if (gps._gnss_mode[state.instance] != 0) {
                 struct ubx_cfg_gnss start_gnss = _buffer.gnss;
-                uint8_t gnssCount = 0;
+                // MARCO unused uint8_t gnssCount = 0;
                 Debug("Got GNSS Settings %u %u %u %u:\n",
                     (unsigned)_buffer.gnss.msgVer,
                     (unsigned)_buffer.gnss.numTrkChHw,

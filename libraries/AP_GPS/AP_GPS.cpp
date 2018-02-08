@@ -21,6 +21,7 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <climits>
+#include "GCS_MAVLink/GCS_MAVLink.h"
 
 #include "AP_GPS_NOVA.h"
 #include "AP_GPS_ERB.h"
@@ -338,7 +339,7 @@ void AP_GPS::init(const AP_SerialManager& serial_manager)
     // MARCO
     for (int i = 0; i < GPS_MAX_RECEIVERS; i++) {
         _port[i] = serial_manager.find_serial(AP_SerialManager::SerialProtocol_GPS, i);
-        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS::init _port[%d] =  0x%p ", i,
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "AP_GPS::init _port[%d] =  0x%p ", i,
             (_port[i] == nullptr ? 0 : &(_port[i])));
     }
     _last_instance_swap_ms = 0;
@@ -755,7 +756,7 @@ void AP_GPS::update(void)
                     // choose GPS with highest state or higher number of satellites
                     if ((state[i].status > state[primary_instance].status) ||
                         ((state[i].status == state[primary_instance].status) && (state[i].num_sats > state[primary_instance].num_sats))) {
-                        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
+                        gcs().send_text(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
                         primary_instance = i;
                         _last_instance_swap_ms = now;
                     }
@@ -768,7 +769,7 @@ void AP_GPS::update(void)
                     }
                     if (state[i].status > state[primary_instance].status) {
                         // we have a higher status lock, or primary is set to the blended GPS, change GPS
-                        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
+                        gcs().send_text(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
                         primary_instance = i;
                         _last_instance_swap_ms = now;
                         continue;
@@ -787,7 +788,7 @@ void AP_GPS::update(void)
                             // then tend to stick to the new GPS as primary. We don't
                             // want to switch too often as it will look like a
                             // position shift to the controllers.
-                            GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
+                            gcs().send_text(MAV_SEVERITY_CRITICAL, "AP_GPS switch primary from %d -> %d (higher status)", primary_instance, i);
                             primary_instance = i;
                             _last_instance_swap_ms = now;
                         }

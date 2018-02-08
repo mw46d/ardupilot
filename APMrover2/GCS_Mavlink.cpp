@@ -278,7 +278,7 @@ uint32_t GCS_MAVLINK_Rover::telem_delay() const
 }
 
 // MARCO
-uint8_t Rover::set_speed(float type, float speed, float thrttle) {
+MAV_RESULT Rover::set_speed(float type, float speed, float thrttle) {
     switch ((int)type) {
     case 0:                                         // Airspeed
     case 1:                                         // Ground Speed
@@ -891,6 +891,7 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
                 }
                 break;
 
+        // MARCO still needed??
         case MAV_CMD_DO_SET_MODE:
             switch ((uint16_t)packet.param1) {
             case MAV_MODE_MANUAL_ARMED:
@@ -1028,6 +1029,12 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
                                                     static_cast<int16_t>(packet.param3),
                                                     packet.param4);
             break;
+
+        // MARCO
+        case MAV_CMD_DO_CHANGE_SPEED:
+            result = rover.set_speed(packet.param1, packet.param2, packet.param3);
+            break;
+        // End MARCO
 
         default:
             result = handle_command_long_message(packet);
@@ -1435,12 +1442,6 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_VISION_POSITION_DELTA:
         rover.g2.visual_odom.handle_msg(msg);
         break;
-
-    // MARCO
-    case MAV_CMD_DO_CHANGE_SPEED:
-        result = rover.set_speed(packet.param1, packet.param2, packet.param3);
-        break;
-    // End MARCO
 
     default:
         handle_common_message(msg);

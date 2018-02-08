@@ -455,7 +455,7 @@ private:
 
     // MARCO
     bool update_arming_checks(void);
-    uint8_t set_speed(float type, float speed, float thrttle);
+    MAV_RESULT set_speed(float type, float speed, float thrttle);
     // End MARCO
 
     // compat.cpp
