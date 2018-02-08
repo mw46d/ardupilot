@@ -22,6 +22,7 @@
 
 #include <AP_Param/AP_Param.h>
 #include <AP_HAL/Util.h>
+#include <AP_Math/AP_Math.h>
 
 #define AP_SCHEDULER_NAME_INITIALIZER(_name) .name = #_name,
 
@@ -51,9 +52,12 @@
 class AP_Scheduler
 {
 public:
-    // constructor
-    AP_Scheduler(void);
-    
+    AP_Scheduler();
+
+    /* Do not allow copies */
+    AP_Scheduler(const AP_Scheduler &other) = delete;
+    AP_Scheduler &operator=(const AP_Scheduler&) = delete;
+
     FUNCTOR_TYPEDEF(task_fn_t, void);
 
     struct Task {
@@ -83,13 +87,30 @@ public:
     // return load average, as a number between 0 and 1. 1 means
     // 100% load. Calculated from how much spare time we have at the
     // end of a run()
-    float load_average(uint32_t tick_time_usec) const;
+    float load_average();
 
-    // get the configured main loop rate
-    uint16_t get_loop_rate_hz(void) const {
-        return _loop_rate_hz;
+    // get the active main loop rate
+    uint16_t get_loop_rate_hz(void) {
+        if (_active_loop_rate_hz == 0) {
+            _active_loop_rate_hz = _loop_rate_hz;
+        }
+        return _active_loop_rate_hz;
     }
-    
+    // get the time-allowed-per-loop in microseconds
+    uint32_t get_loop_period_us() {
+        if (_loop_period_us == 0) {
+            _loop_period_us = 1000000UL / _loop_rate_hz;
+        }
+        return _loop_period_us;
+    }
+    // get the time-allowed-per-loop in seconds
+    float get_loop_period_s() {
+        if (is_zero(_loop_period_s)) {
+            _loop_period_s = 1.0 / _loop_rate_hz;
+        }
+        return _loop_period_s;
+    }
+
     static const struct AP_Param::GroupInfo var_info[];
 
     // current running task, or -1 if none. Used to debug stuck tasks
@@ -100,7 +121,16 @@ private:
     AP_Int8 _debug;
 
     // overall scheduling rate in Hz
-    AP_Int16 _loop_rate_hz;  // The value of this variable can be changed with the non-initialization. (Ex. Tuning by GDB)
+    AP_Int16 _loop_rate_hz;
+
+    // loop rate in Hz as set at startup
+    AP_Int16 _active_loop_rate_hz;
+    
+    // calculated loop period in usec
+    uint16_t _loop_period_us;
+
+    // calculated loop period in seconds
+    float _loop_period_s;
     
     // progmem list of tasks to run
     const struct Task *_tasks;

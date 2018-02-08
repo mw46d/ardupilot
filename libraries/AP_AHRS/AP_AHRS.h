@@ -53,7 +53,7 @@ public:
     friend class AP_AHRS_View;
     
     // Constructor
-    AP_AHRS(AP_InertialSensor &ins, AP_Baro &baro, AP_GPS &gps) :
+    AP_AHRS(AP_InertialSensor &ins, AP_Baro &baro) :
         roll(0.0f),
         pitch(0.0f),
         yaw(0.0f),
@@ -68,7 +68,6 @@ public:
         _compass_last_update(0),
         _ins(ins),
         _baro(baro),
-        _gps(gps),
         _cos_roll(1.0f),
         _cos_pitch(1.0f),
         _cos_yaw(1.0f),
@@ -115,6 +114,38 @@ public:
         return _flags.fly_forward;
     }
 
+    /*
+      set the "likely flying" flag. This is not guaranteed to be
+      accurate, but is the vehicle codes best guess as to the whether
+      the vehicle is currently flying
+     */
+    void set_likely_flying(bool b) {
+        if (b && !_flags.likely_flying) {
+            _last_flying_ms = AP_HAL::millis();
+        }
+        _flags.likely_flying = b;
+    }
+
+    /*
+      get the likely flying status. Returns true if the vehicle code
+      thinks we are flying at the moment. Not guaranteed to be
+      accurate
+     */
+    bool get_likely_flying(void) const {
+        return _flags.likely_flying;
+    }
+
+    /*
+      return time in milliseconds since likely_flying was set
+      true. Returns zero if likely_flying is currently false
+    */
+    uint32_t get_time_flying_ms(void) const {
+        if (!_flags.likely_flying) {
+            return 0;
+        }
+        return AP_HAL::millis() - _last_flying_ms;
+    }
+    
     AHRS_VehicleClass get_vehicle_class(void) const {
         return _vehicle_class;
     }
@@ -167,10 +198,6 @@ public:
 
     const AP_Beacon *get_beacon(void) const {
         return _beacon;
-    }
-
-    const AP_GPS &get_gps() const {
-        return _gps;
     }
 
     const AP_InertialSensor &get_ins() const {
@@ -270,7 +297,7 @@ public:
     virtual bool get_position(struct Location &loc) const = 0;
 
     // return a wind estimation vector, in m/s
-    virtual Vector3f wind_estimate(void) = 0;
+    virtual Vector3f wind_estimate(void) const = 0;
 
     // return an airspeed estimate if available. return true
     // if we have an estimate
@@ -416,12 +443,17 @@ public:
     static const struct AP_Param::GroupInfo var_info[];
 
     // return secondary attitude solution if available, as eulers in radians
-    virtual bool get_secondary_attitude(Vector3f &eulers) {
+    virtual bool get_secondary_attitude(Vector3f &eulers) const {
         return false;
     }
 
+    // return secondary attitude solution if available, as quaternion
+    virtual bool get_secondary_quaternion(Quaternion &quat) const {
+        return false;
+    }
+    
     // return secondary position solution if available
-    virtual bool get_secondary_position(struct Location &loc) {
+    virtual bool get_secondary_position(struct Location &loc) const {
         return false;
     }
 
@@ -435,6 +467,14 @@ public:
     // when the vehicle is at this position. It is assumed that the
     // current barometer and GPS altitudes correspond to this altitude
     virtual void set_home(const Location &loc) = 0;
+
+    // set the EKF's origin location in 10e7 degrees.  This should only
+    // be called when the EKF has no absolute position reference (i.e. GPS)
+    // from which to decide the origin on its own
+    virtual bool set_origin(const Location &loc) { return false; }
+
+    // returns the inertial navigation origin in lat/lon/alt
+    virtual bool get_origin(Location &ret) const { return false; }
 
     // return true if the AHRS object supports inertial navigation,
     // with very accurate position and velocity
@@ -489,8 +529,8 @@ public:
     }
     
     // get_variances - provides the innovations normalised using the innovation variance where a value of 0
-    // indicates prefect consistency between the measurement and the EKF solution and a value of of 1 is the maximum
-    // inconsistency that will be accpeted by the filter
+    // indicates perfect consistency between the measurement and the EKF solution and a value of of 1 is the maximum
+    // inconsistency that will be accepted by the filter
     // boolean false is returned if variances are not available
     virtual bool get_variances(float &velVar, float &posVar, float &hgtVar, Vector3f &magVar, float &tasVar, Vector2f &offset) const {
         return false;
@@ -510,6 +550,19 @@ public:
     // create a view
     AP_AHRS_View *create_view(enum Rotation rotation);
     
+    // return calculated AOA
+    float getAOA(void);
+
+    // return calculated SSA
+    float getSSA(void);
+
+    virtual void update_AOA_SSA(void);
+
+    // get_hgt_ctrl_limit - get maximum height to be observed by the
+    // control loops in meters and a validity flag.  It will return
+    // false when no limiting is required
+    virtual bool get_hgt_ctrl_limit(float &limit) const { return false; };
+
 protected:
     AHRS_VehicleClass _vehicle_class;
 
@@ -533,7 +586,11 @@ protected:
         uint8_t fly_forward             : 1;    // 1 if we can assume the aircraft will be flying forward on its X axis
         uint8_t correct_centrifugal     : 1;    // 1 if we should correct for centrifugal forces (allows arducopter to turn this off when motors are disarmed)
         uint8_t wind_estimation         : 1;    // 1 if we should do wind estimation
+        uint8_t likely_flying           : 1;    // 1 if vehicle is probably flying
     } _flags;
+
+    // time when likely_flying last went true
+    uint32_t _last_flying_ms;
 
     // calculate sin/cos of roll/pitch/yaw from rotation
     void calc_trig(const Matrix3f &rot,
@@ -566,7 +623,6 @@ protected:
     //       IMU under us without our noticing.
     AP_InertialSensor   &_ins;
     AP_Baro             &_baro;
-    const AP_GPS        &_gps;
 
     // a vector to capture the difference between the controller and body frames
     AP_Vector3f         _trim;
@@ -602,6 +658,10 @@ protected:
 
     // optional view class
     AP_AHRS_View *_view;
+
+    // AOA and SSA
+    float _AOA, _SSA;
+    uint32_t _last_AOA_update_ms;
 };
 
 #include "AP_AHRS_DCM.h"

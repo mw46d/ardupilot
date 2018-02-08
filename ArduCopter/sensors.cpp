@@ -2,13 +2,13 @@
 
 void Copter::init_barometer(bool full_calibration)
 {
-    gcs_send_text(MAV_SEVERITY_INFO, "Calibrating barometer");
+    gcs().send_text(MAV_SEVERITY_INFO, "Calibrating barometer");
     if (full_calibration) {
         barometer.calibrate();
     }else{
         barometer.update_calibration();
     }
-    gcs_send_text(MAV_SEVERITY_INFO, "Barometer calibration complete");
+    gcs().send_text(MAV_SEVERITY_INFO, "Barometer calibration complete");
 }
 
 // return barometric altitude in centimeters
@@ -22,6 +22,12 @@ void Copter::read_barometer(void)
     baro_climbrate = barometer.get_climb_rate() * 100.0f;
 
     motors->set_air_density_ratio(barometer.get_air_density_ratio());
+}
+
+// try to accumulate a baro reading
+void Copter::barometer_accumulate(void)
+{
+    barometer.accumulate();
 }
 
 void Copter::init_rangefinder(void)
@@ -100,24 +106,45 @@ void Copter::rpm_update(void)
 // initialise compass
 void Copter::init_compass()
 {
+    if (!g.compass_enabled) {
+        return;
+    }
+
     if (!compass.init() || !compass.read()) {
         // make sure we don't pass a broken compass to DCM
-        cliSerial->printf("COMPASS INIT ERROR\n");
+        hal.console->printf("COMPASS INIT ERROR\n");
         Log_Write_Error(ERROR_SUBSYSTEM_COMPASS,ERROR_CODE_FAILED_TO_INITIALISE);
         return;
     }
     ahrs.set_compass(&compass);
 }
 
+/*
+  if the compass is enabled then try to accumulate a reading
+  also update initial location used for declination
+ */
+void Copter::compass_accumulate(void)
+{
+    if (!g.compass_enabled) {
+        return;
+    }
+
+    compass.accumulate();
+
+    // update initial location used for declination
+    if (!ap.compass_init_location) {
+        Location loc;
+        if (ahrs.get_position(loc)) {
+            compass.set_initial_location(loc.lat, loc.lng);
+            ap.compass_init_location = true;
+        }
+    }
+}
+
 // initialise optical flow sensor
 void Copter::init_optflow()
 {
 #if OPTFLOW == ENABLED
-    // exit immediately if not enabled
-    if (!optflow.enabled()) {
-        return;
-    }
-
     // initialise optical flow sensor
     optflow.init();
 #endif      // OPTFLOW == ENABLED
@@ -164,12 +191,14 @@ void Copter::read_battery(void)
     }
 
     // update motors with voltage and current
-    if (battery.get_type() != AP_BattMonitor::BattMonitor_TYPE_NONE) {
+    if (battery.get_type() != AP_BattMonitor_Params::BattMonitor_TYPE_NONE) {
         motors->set_voltage(battery.voltage());
         AP_Notify::flags.battery_voltage = battery.voltage();
     }
     if (battery.has_current()) {
         motors->set_current(battery.current_amps());
+        motors->set_resistance(battery.get_resistance());
+        motors->set_voltage_resting_estimate(battery.voltage_resting_estimate());
     }
 
     // check for low voltage or current if the low voltage check hasn't already been triggered
@@ -298,6 +327,11 @@ void Copter::update_sensor_status_flags(void)
         control_sensors_present |= MAV_SYS_STATUS_SENSOR_VISION_POSITION;
     }
 #endif
+#if VISUAL_ODOMETRY_ENABLED == ENABLED
+    if (g2.visual_odom.enabled()) {
+        control_sensors_present |= MAV_SYS_STATUS_SENSOR_VISION_POSITION;
+    }
+#endif
     if (ap.rc_receiver_present) {
         control_sensors_present |= MAV_SYS_STATUS_SENSOR_RC_RECEIVER;
     }
@@ -312,14 +346,19 @@ void Copter::update_sensor_status_flags(void)
     if (copter.battery.healthy()) {
         control_sensors_present |= MAV_SYS_STATUS_SENSOR_BATTERY;
     }
-
+#if AC_FENCE == ENABLED
+    if (copter.fence.sys_status_present()) {
+        control_sensors_present |= MAV_SYS_STATUS_GEOFENCE;
+    }
+#endif
 
     // all present sensors enabled by default except altitude and position control and motors which we will set individually
     control_sensors_enabled = control_sensors_present & (~MAV_SYS_STATUS_SENSOR_Z_ALTITUDE_CONTROL &
                                                          ~MAV_SYS_STATUS_SENSOR_XY_POSITION_CONTROL &
                                                          ~MAV_SYS_STATUS_SENSOR_MOTOR_OUTPUTS &
                                                          ~MAV_SYS_STATUS_LOGGING &
-                                                         ~MAV_SYS_STATUS_SENSOR_BATTERY);
+                                                         ~MAV_SYS_STATUS_SENSOR_BATTERY &
+                                                         ~MAV_SYS_STATUS_GEOFENCE);
 
     switch (control_mode) {
     case AUTO:
@@ -332,6 +371,7 @@ void Copter::update_sensor_status_flags(void)
     case POSHOLD:
     case BRAKE:
     case THROW:
+    case SMART_RTL:
         control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_Z_ALTITUDE_CONTROL;
         control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_XY_POSITION_CONTROL;
         break;
@@ -358,7 +398,11 @@ void Copter::update_sensor_status_flags(void)
     if (g.fs_batt_voltage > 0 || g.fs_batt_mah > 0) {
         control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_BATTERY;
     }
-
+#if AC_FENCE == ENABLED
+    if (copter.fence.sys_status_enabled()) {
+        control_sensors_enabled |= MAV_SYS_STATUS_GEOFENCE;
+    }
+#endif
 
 
     // default to all healthy
@@ -370,7 +414,7 @@ void Copter::update_sensor_status_flags(void)
     if (!g.compass_enabled || !compass.healthy() || !ahrs.use_compass()) {
         control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_3D_MAG;
     }
-    if (gps.status() == AP_GPS::NO_GPS) {
+    if (!gps.is_healthy()) {
         control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_GPS;
     }
     if (!ap.rc_receiver_present || failsafe.radio) {
@@ -382,7 +426,12 @@ void Copter::update_sensor_status_flags(void)
     }
 #endif
 #if PRECISION_LANDING == ENABLED
-    if (!precland.healthy()) {
+    if (precland.enabled() && !precland.healthy()) {
+        control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_VISION_POSITION;
+    }
+#endif
+#if VISUAL_ODOMETRY_ENABLED == ENABLED
+    if (g2.visual_odom.enabled() && !g2.visual_odom.healthy()) {
         control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_VISION_POSITION;
     }
 #endif
@@ -443,7 +492,12 @@ void Copter::update_sensor_status_flags(void)
 
     if (copter.failsafe.battery) {
          control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_BATTERY;                                                                    }
-    
+#if AC_FENCE == ENABLED
+    if (copter.fence.sys_status_failed()) {
+        control_sensors_health &= ~MAV_SYS_STATUS_GEOFENCE;
+    }
+#endif
+
 #if FRSKY_TELEM_ENABLED == ENABLED
     // give mask of error flags to Frsky_Telemetry
     frsky_telemetry.update_sensor_status_flags(~control_sensors_health & control_sensors_enabled & control_sensors_present);
@@ -460,4 +514,49 @@ void Copter::init_beacon()
 void Copter::update_beacon()
 {
     g2.beacon.update();
+}
+
+// init visual odometry sensor
+void Copter::init_visual_odom()
+{
+#if VISUAL_ODOMETRY_ENABLED == ENABLED
+    g2.visual_odom.init();
+#endif
+}
+
+// update visual odometry sensor
+void Copter::update_visual_odom()
+{
+#if VISUAL_ODOMETRY_ENABLED == ENABLED
+    // check for updates
+    if (g2.visual_odom.enabled() && (g2.visual_odom.get_last_update_ms() != visual_odom_last_update_ms)) {
+        visual_odom_last_update_ms = g2.visual_odom.get_last_update_ms();
+        float time_delta_sec = g2.visual_odom.get_time_delta_usec() / 1000000.0f;
+        ahrs.writeBodyFrameOdom(g2.visual_odom.get_confidence(),
+                                g2.visual_odom.get_position_delta(),
+                                g2.visual_odom.get_angle_delta(),
+                                time_delta_sec,
+                                visual_odom_last_update_ms,
+                                g2.visual_odom.get_pos_offset());
+        // log sensor data
+        DataFlash.Log_Write_VisualOdom(time_delta_sec,
+                                       g2.visual_odom.get_angle_delta(),
+                                       g2.visual_odom.get_position_delta(),
+                                       g2.visual_odom.get_confidence());
+    }
+#endif
+}
+
+// winch and wheel encoder initialisation
+void Copter::winch_init()
+{
+    g2.wheel_encoder.init();
+    g2.winch.init(&g2.wheel_encoder);
+}
+
+// winch and wheel encoder update
+void Copter::winch_update()
+{
+    g2.wheel_encoder.update();
+    g2.winch.update();
 }

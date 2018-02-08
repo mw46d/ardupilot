@@ -25,6 +25,11 @@ class AC_PrecLand
     friend class AC_PrecLand_SITL;
 
 public:
+    AC_PrecLand(const AP_AHRS& ahrs, const AP_InertialNav& inav);
+
+    /* Do not allow copies */
+    AC_PrecLand(const AC_PrecLand &other) = delete;
+    AC_PrecLand &operator=(const AC_PrecLand&) = delete;
 
     // precision landing behaviours (held in PRECLAND_ENABLED parameter)
     enum PrecLandBehaviour {
@@ -41,9 +46,6 @@ public:
         PRECLAND_TYPE_SITL_GAZEBO,
         PRECLAND_TYPE_SITL,
     };
-
-    // constructor
-    AC_PrecLand(const AP_AHRS& ahrs, const AP_InertialNav& inav);
 
     // perform any required initialisation of landing controllers
     void init();
@@ -107,6 +109,7 @@ private:
     // parameters
     AP_Int8                     _enabled;           // enabled/disabled and behaviour
     AP_Int8                     _type;              // precision landing sensor type
+    AP_Int8                     _bus;               // which sensor bus
     AP_Int8                     _estimator_type;    // precision landing estimator type
     AP_Float                    _yaw_align;         // Yaw angle from body x-axis to sensor x-axis.
     AP_Float                    _land_ofs_cm_x;     // Desired landing position of the camera forward of the target in vehicle body frame

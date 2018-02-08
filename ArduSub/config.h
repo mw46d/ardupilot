@@ -38,19 +38,9 @@
 #error CONFIG_HAL_BOARD must be defined to build ArduSub
 #endif
 
-//////////////////////////////////////////////////////////////////////////////
-// HIL_MODE                                 OPTIONAL
-
-#ifndef HIL_MODE
-#define HIL_MODE        HIL_MODE_DISABLED
-#endif
-
-#define MAGNETOMETER ENABLED
-
 // run at 400Hz on all systems
 # define MAIN_LOOP_RATE    400
 # define MAIN_LOOP_SECONDS 0.0025f
-# define MAIN_LOOP_MICROS  2500
 
 #ifndef SURFACE_DEPTH_DEFAULT
 # define SURFACE_DEPTH_DEFAULT -10.0f // pressure sensor reading 10cm depth means craft is considered surfaced
@@ -168,39 +158,10 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
-// RADIO CONFIGURATION
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// FLIGHT_MODE
-//
-
-#ifndef FLIGHT_MODE_1
-# define FLIGHT_MODE_1                  MANUAL
-#endif
-#ifndef FLIGHT_MODE_2
-# define FLIGHT_MODE_2                  STABILIZE
-#endif
-#ifndef FLIGHT_MODE_3
-# define FLIGHT_MODE_3                  ALT_HOLD
-#endif
-#ifndef FLIGHT_MODE_4
-# define FLIGHT_MODE_4                  STABILIZE
-#endif
-#ifndef FLIGHT_MODE_5
-# define FLIGHT_MODE_5                  STABILIZE
-#endif
-#ifndef FLIGHT_MODE_6
-# define FLIGHT_MODE_6                  STABILIZE
-#endif
-
-//////////////////////////////////////////////////////////////////////////////
 // CAMERA TRIGGER AND CONTROL
 //
 #ifndef CAMERA
-# define CAMERA        ENABLED
+# define CAMERA        DISABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -242,7 +203,7 @@
 
 // AUTO Mode
 #ifndef WP_YAW_BEHAVIOR_DEFAULT
-# define WP_YAW_BEHAVIOR_DEFAULT   WP_YAW_BEHAVIOR_LOOK_AT_NEXT_WP_EXCEPT_RTL
+# define WP_YAW_BEHAVIOR_DEFAULT   WP_YAW_BEHAVIOR_CORRECT_XTRACK
 #endif
 
 #ifndef AUTO_YAW_SLEW_RATE
@@ -268,22 +229,6 @@
 //
 #ifndef POS_XY_P
 # define POS_XY_P               1.0f
-#endif
-
-//////////////////////////////////////////////////////////////////////////////
-// Velocity (horizontal) gains
-//
-#ifndef VEL_XY_P
-# define VEL_XY_P              1.0f
-#endif
-#ifndef VEL_XY_I
-# define VEL_XY_I              0.5f
-#endif
-#ifndef VEL_XY_IMAX
-# define VEL_XY_IMAX           1000
-#endif
-#ifndef VEL_XY_FILT_HZ
-# define VEL_XY_FILT_HZ        5.0f
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -380,13 +325,4 @@
 
 #ifndef AC_TERRAIN
 #define AC_TERRAIN DISABLED // Requires Rally enabled as well
-#endif
-
-//////////////////////////////////////////////////////////////////////////////
-// Developer Items
-//
-
-// use this to completely disable the CLI
-#ifndef CLI_ENABLED
-#  define CLI_ENABLED           ENABLED
 #endif

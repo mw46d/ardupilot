@@ -2,9 +2,9 @@
 
 void Sub::init_barometer(bool save)
 {
-    gcs_send_text(MAV_SEVERITY_INFO, "Calibrating barometer");
+    gcs().send_text(MAV_SEVERITY_INFO, "Calibrating barometer");
     barometer.calibrate(save);
-    gcs_send_text(MAV_SEVERITY_INFO, "Barometer calibration complete");
+    gcs().send_text(MAV_SEVERITY_INFO, "Barometer calibration complete");
 }
 
 // return barometric altitude in centimeters
@@ -14,10 +14,16 @@ void Sub::read_barometer(void)
     if (should_log(MASK_LOG_IMU)) {
         Log_Write_Baro();
     }
-    baro_alt = barometer.get_altitude() * 100.0f;
-    baro_climbrate = barometer.get_climb_rate() * 100.0f;
 
-    motors.set_air_density_ratio(barometer.get_air_density_ratio());
+    if (ap.depth_sensor_present) {
+        sensor_health.depth = barometer.healthy(depth_sensor_idx);
+    }
+}
+
+// try to accumulate a baro reading
+void Sub::barometer_accumulate(void)
+{
+    barometer.accumulate();
 }
 
 void Sub::init_rangefinder(void)
@@ -95,26 +101,43 @@ void Sub::init_compass()
 {
     if (!compass.init() || !compass.read()) {
         // make sure we don't pass a broken compass to DCM
-        cliSerial->println("COMPASS INIT ERROR");
+        hal.console->println("COMPASS INIT ERROR");
         Log_Write_Error(ERROR_SUBSYSTEM_COMPASS,ERROR_CODE_FAILED_TO_INITIALISE);
         return;
     }
     ahrs.set_compass(&compass);
 }
 
-// initialise optical flow sensor
-void Sub::init_optflow()
+/*
+  if the compass is enabled then try to accumulate a reading
+  also update initial location used for declination
+ */
+void Sub::compass_accumulate(void)
 {
-#if OPTFLOW == ENABLED
-    // exit immediately if not enabled
-    if (!optflow.enabled()) {
+    if (!g.compass_enabled) {
         return;
     }
 
+    compass.accumulate();
+
+    // update initial location used for declination
+    if (!ap.compass_init_location) {
+        Location loc;
+        if (ahrs.get_position(loc)) {
+            compass.set_initial_location(loc.lat, loc.lng);
+            ap.compass_init_location = true;
+        }
+    }
+}
+
+// initialise optical flow sensor
+#if OPTFLOW == ENABLED
+void Sub::init_optflow()
+{
     // initialise optical flow sensor
     optflow.init();
-#endif      // OPTFLOW == ENABLED
 }
+#endif      // OPTFLOW == ENABLED
 
 // called at 200hz
 #if OPTFLOW == ENABLED
@@ -157,7 +180,7 @@ void Sub::read_battery(void)
     }
 
     // update motors with voltage and current
-    if (battery.get_type() != AP_BattMonitor::BattMonitor_TYPE_NONE) {
+    if (battery.get_type() != AP_BattMonitor_Params::BattMonitor_TYPE_NONE) {
         motors.set_voltage(battery.voltage());
     }
 

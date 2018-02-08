@@ -29,18 +29,14 @@ enum autopilot_yaw_mode {
     AUTO_YAW_CORRECT_XTRACK =    6   // steer the sub in order to correct for crosstrack error during line following
 };
 
-// HIL enumerations
-#define HIL_MODE_DISABLED               0
-#define HIL_MODE_SENSORS                1
-
 // Auto Pilot Modes enumeration
 enum control_mode_t {
     STABILIZE =     0,  // manual angle with manual depth/throttle
     ACRO =          1,  // manual body-frame angular rate with manual depth/throttle
     ALT_HOLD =      2,  // manual angle with automatic depth/throttle
-    AUTO =          3,  // not implemented in sub // fully automatic waypoint control using mission commands
-    GUIDED =        4,  // not implemented in sub // fully automatic fly to coordinate or fly at velocity/direction using GCS immediate commands
-    CIRCLE =        7,  // not implemented in sub // automatic circular flight with automatic throttle
+    AUTO =          3,  // fully automatic waypoint control using mission commands
+    GUIDED =        4,  // fully automatic fly to coordinate or fly at velocity/direction using GCS immediate commands
+    CIRCLE =        7,  // automatic circular flight with automatic throttle
     SURFACE =       9,  // automatically return to surface, pilot maintains horizontal control
     POSHOLD =      16,  // automatic position hold with manual override, with automatic throttle
     MANUAL =       19   // Pass-through input with no stabilization
@@ -60,7 +56,8 @@ enum mode_reason_t {
     MODE_REASON_FENCE_BREACH,
     MODE_REASON_TERRAIN_FAILSAFE,
     MODE_REASON_SURFACE_COMPLETE,
-    MODE_REASON_LEAK_FAILSAFE
+    MODE_REASON_LEAK_FAILSAFE,
+    MODE_REASON_BAD_DEPTH
 };
 
 // Acro Trainer types
@@ -126,7 +123,6 @@ enum RTLState {
 #define LOG_DATA_FLOAT_MSG              0x18
 #define LOG_MOTBATT_MSG                 0x1E
 #define LOG_PARAMTUNE_MSG               0x1F
-#define LOG_HELI_MSG                    0x20
 #define LOG_GUIDEDTARGET_MSG            0x22
 #define LOG_PROXIMITY_MSG               0x24
 
@@ -153,15 +149,10 @@ enum RTLState {
 // DATA - event logging
 #define DATA_AP_STATE                       7
 #define DATA_SYSTEM_TIME_SET                8
-#define DATA_INIT_SIMPLE_BEARING            9
 #define DATA_ARMED                          10
 #define DATA_DISARMED                       11
-#define DATA_AUTO_ARMED                     15
 #define DATA_LOST_GPS                       19
 #define DATA_SET_HOME                       25
-#define DATA_SET_SIMPLE_ON                  26
-#define DATA_SET_SIMPLE_OFF                 27
-#define DATA_SET_SUPERSIMPLE_ON             29
 #define DATA_SAVE_TRIM                      38
 #define DATA_SAVEWP_ADD_WP                  39
 #define DATA_FENCE_ENABLE                   41
@@ -171,10 +162,6 @@ enum RTLState {
 #define DATA_ACRO_TRAINER_LIMITED           45
 #define DATA_GRIPPER_GRAB                   46
 #define DATA_GRIPPER_RELEASE                47
-#define DATA_MOTORS_EMERGENCY_STOPPED       54
-#define DATA_MOTORS_EMERGENCY_STOP_CLEARED  55
-#define DATA_MOTORS_INTERLOCK_DISABLED      56
-#define DATA_MOTORS_INTERLOCK_ENABLED       57
 #define DATA_EKF_ALT_RESET                  60
 #define DATA_SURFACE_CANCELLED_BY_PILOT     61
 #define DATA_EKF_YAW_RESET                  62
@@ -182,9 +169,6 @@ enum RTLState {
 #define DATA_NOT_SURFACED                   64
 #define DATA_BOTTOMED                       65
 #define DATA_NOT_BOTTOMED                   66
-
-// Centi-degrees to radians
-#define DEGX100 5729.57795f
 
 // Error message sub systems and error codes
 #define ERROR_SUBSYSTEM_MAIN                1
@@ -207,6 +191,8 @@ enum RTLState {
 #define ERROR_SUBSYSTEM_NAVIGATION          22
 #define ERROR_SUBSYSTEM_FAILSAFE_TERRAIN    23
 #define ERROR_SUBSYSTEM_FAILSAFE_LEAK       24
+#define ERROR_SUBSYSTEM_FAILSAFE_SENSORS    25
+
 // general error codes
 #define ERROR_CODE_ERROR_RESOLVED           0
 #define ERROR_CODE_FAILED_TO_INITIALISE     1
@@ -234,8 +220,9 @@ enum RTLState {
 // EKF check definitions
 #define ERROR_CODE_EKFCHECK_BAD_VARIANCE       2
 #define ERROR_CODE_EKFCHECK_VARIANCE_CLEARED   0
+
 // Baro specific error codes
-#define ERROR_CODE_BARO_GLITCH              2
+#define ERROR_CODE_BAD_DEPTH              0
 
 //////////////////////////////////////////////////////////////////////////////
 // Battery monitoring
@@ -264,7 +251,10 @@ enum RTLState {
 //////////////////////////////////////////////////////////////////////////////
 //  EKF Failsafe
 // EKF failsafe definitions (FS_EKF_ENABLE parameter)
-#define FS_EKF_ACTION_DISABLED                  1       // Disabled, not implemented yet in Sub
+#define FS_EKF_ACTION_DISABLED                0       // Disabled
+#define FS_EKF_ACTION_WARN_ONLY               1       // Send warning to gcs
+#define FS_EKF_ACTION_DISARM                  2       // Disarm
+
 
 #ifndef FS_EKF_ACTION_DEFAULT
 # define FS_EKF_ACTION_DEFAULT         FS_EKF_ACTION_DISABLED  // EKF failsafe
@@ -289,7 +279,7 @@ enum RTLState {
 
 // Leak failsafe definitions (FS_LEAK_ENABLE parameter)
 #define FS_LEAK_DISABLED    0 // Disabled
-#define FS_LEAK_WARN_ONLY   1 // Only send waring to gcs
+#define FS_LEAK_WARN_ONLY   1 // Only send warning to gcs
 #define FS_LEAK_SURFACE     2 // Switch to surface mode
 
 // Internal pressure failsafe threshold (FS_PRESS_MAX parameter)
@@ -313,6 +303,11 @@ enum RTLState {
 #define FS_TERRAIN_DISARM       0
 #define FS_TERRAIN_HOLD         1
 #define FS_TERRAIN_SURFACE      2
+
+// Pilot input failsafe actions
+#define FS_PILOT_INPUT_DISABLED    0
+#define FS_PILOT_INPUT_WARN_ONLY   1
+#define FS_PILOT_INPUT_DISARM      2
 
 // Amount of time to attempt recovery of valid rangefinder data before
 // initiating terrain failsafe action

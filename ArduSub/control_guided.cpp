@@ -1,7 +1,7 @@
 #include "Sub.h"
 
 /*
- * control_guided.pde - init and run calls for guided flight mode
+ * Init and run calls for guided flight mode
  */
 
 #ifndef GUIDED_LOOK_AT_TARGET_MIN_DISTANCE_CM
@@ -36,15 +36,15 @@ struct Guided_Limit {
 // guided_init - initialise guided controller
 bool Sub::guided_init(bool ignore_checks)
 {
-        if (position_ok() || ignore_checks) {
-            // initialise yaw
-            set_auto_yaw_mode(get_default_auto_yaw_mode(false));
-            // start in position control mode
-            guided_pos_control_start();
-            return true;
-        }else{
-            return false;
-        }
+    if (!position_ok() && !ignore_checks) {
+        return false;
+    }
+
+    // initialise yaw
+    set_auto_yaw_mode(get_default_auto_yaw_mode(false));
+    // start in position control mode
+    guided_pos_control_start();
+    return true;
 }
 
 // initialise guided mode's position controller
@@ -77,7 +77,7 @@ void Sub::guided_vel_control_start()
     guided_mode = Guided_Velocity;
 
     // initialize vertical speeds and leash lengths
-    pos_control.set_speed_z(-g.pilot_velocity_z_max, g.pilot_velocity_z_max);
+    pos_control.set_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
     pos_control.set_accel_z(g.pilot_accel_z);
 
     // initialise velocity controller
@@ -212,18 +212,32 @@ void Sub::guided_set_velocity(const Vector3f& velocity)
 }
 
 // set guided mode posvel target
-void Sub::guided_set_destination_posvel(const Vector3f& destination, const Vector3f& velocity)
+bool Sub::guided_set_destination_posvel(const Vector3f& destination, const Vector3f& velocity)
 {
     // check we are in velocity control mode
     if (guided_mode != Guided_PosVel) {
         guided_posvel_control_start();
     }
 
+#if AC_FENCE == ENABLED
+    // reject destination if outside the fence
+    Location_Class dest_loc(destination);
+    if (!fence.check_destination_within_fence(dest_loc)) {
+        Log_Write_Error(ERROR_SUBSYSTEM_NAVIGATION, ERROR_CODE_DEST_OUTSIDE_FENCE);
+        // failure is propagated to GCS with NAK
+        return false;
+    }
+#endif
+
     posvel_update_time_ms = millis();
     posvel_pos_target_cm = destination;
     posvel_vel_target_cms = velocity;
 
     pos_control.set_pos_target(posvel_pos_target_cm);
+
+    // log target
+    Log_Write_GuidedTarget(guided_mode, destination, velocity);
+    return true;
 }
 
 // set guided mode angle target
@@ -277,8 +291,8 @@ void Sub::guided_run()
 // called from guided_run
 void Sub::guided_pos_control_run()
 {
-    // if not auto armed or motors not enabled set throttle to zero and exit immediately
-    if (!motors.armed() || !ap.auto_armed || !motors.get_interlock()) {
+    // if motors not enabled set throttle to zero and exit immediately
+    if (!motors.armed()) {
         motors.set_desired_spool_state(AP_Motors::DESIRED_SPIN_WHEN_ARMED);
         // Sub vehicles do not stabilize roll/pitch/yaw when disarmed
         attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
@@ -288,7 +302,7 @@ void Sub::guided_pos_control_run()
 
     // process pilot's yaw input
     float target_yaw_rate = 0;
-    if (!failsafe.manual_control) {
+    if (!failsafe.pilot_input) {
         // get pilot's desired yaw rate
         target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
         if (!is_zero(target_yaw_rate)) {
@@ -326,8 +340,8 @@ void Sub::guided_pos_control_run()
 // called from guided_run
 void Sub::guided_vel_control_run()
 {
-    // if not auto armed or motors not enabled set throttle to zero and exit immediately
-    if (!motors.armed() || !ap.auto_armed || !motors.get_interlock()) {
+    // ifmotors not enabled set throttle to zero and exit immediately
+    if (!motors.armed()) {
         // initialise velocity controller
         pos_control.init_vel_controller_xyz();
         motors.set_desired_spool_state(AP_Motors::DESIRED_SPIN_WHEN_ARMED);
@@ -339,7 +353,7 @@ void Sub::guided_vel_control_run()
 
     // process pilot's yaw input
     float target_yaw_rate = 0;
-    if (!failsafe.manual_control) {
+    if (!failsafe.pilot_input) {
         // get pilot's desired yaw rate
         target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
         if (!is_zero(target_yaw_rate)) {
@@ -380,8 +394,8 @@ void Sub::guided_vel_control_run()
 // called from guided_run
 void Sub::guided_posvel_control_run()
 {
-    // if not auto armed or motors not enabled set throttle to zero and exit immediately
-    if (!motors.armed() || !ap.auto_armed || !motors.get_interlock()) {
+    // if motors not enabled set throttle to zero and exit immediately
+    if (!motors.armed()) {
         // set target position and velocity to current position and velocity
         pos_control.set_pos_target(inertial_nav.get_position());
         pos_control.set_desired_velocity(Vector3f(0,0,0));
@@ -395,7 +409,7 @@ void Sub::guided_posvel_control_run()
     // process pilot's yaw input
     float target_yaw_rate = 0;
 
-    if (!failsafe.manual_control) {
+    if (!failsafe.pilot_input) {
         // get pilot's desired yaw rate
         target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
         if (!is_zero(target_yaw_rate)) {
@@ -456,13 +470,13 @@ void Sub::guided_posvel_control_run()
 // called from guided_run
 void Sub::guided_angle_control_run()
 {
-    // if not auto armed or motors not enabled set throttle to zero and exit immediately
-    if (!motors.armed() || !ap.auto_armed || !motors.get_interlock()) {
+    // if motors not enabled set throttle to zero and exit immediately
+    if (!motors.armed()) {
         motors.set_desired_spool_state(AP_Motors::DESIRED_SPIN_WHEN_ARMED);
         // Sub vehicles do not stabilize roll/pitch/yaw when disarmed
         attitude_control.set_throttle_out_unstabilized(0.0f,true,g.throttle_filt);
 
-        pos_control.relax_alt_hold_controllers(0.0f);
+        pos_control.relax_alt_hold_controllers(motors.get_throttle_hover());
         return;
     }
 
@@ -557,7 +571,7 @@ bool Sub::guided_limit_check()
 
     // check if we have gone beyond horizontal limit
     if (guided_limit.horiz_max_cm > 0.0f) {
-        float horiz_move = pv_get_horizontal_distance_cm(guided_limit.start_pos, curr_pos);
+        float horiz_move = get_horizontal_distance_cm(guided_limit.start_pos, curr_pos);
         if (horiz_move > guided_limit.horiz_max_cm) {
             return true;
         }

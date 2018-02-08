@@ -531,6 +531,9 @@ void VRBRAINRCOutput::cork()
 
 void VRBRAINRCOutput::push()
 {
+    if (!_corking) {
+        return;
+    }
 #if RCOUT_DEBUG_LATENCY
     hal.gpio->pinMode(55, HAL_GPIO_OUTPUT);
     hal.gpio->write(55, 0);
@@ -556,7 +559,7 @@ void VRBRAINRCOutput::_timer_tick(void)
 /*
   enable sbus output
  */
-bool VRBRAINRCOutput::enable_sbus_out(uint16_t rate_hz)
+bool VRBRAINRCOutput::enable_px4io_sbus_out(uint16_t rate_hz)
 {
     int fd = open("/dev/px4io", 0);
     if (fd == -1) {

@@ -1,5 +1,11 @@
 #include "Sub.h"
 
+// enable_motor_output() - enable and output lowest possible value to motors
+void Sub::enable_motor_output()
+{
+    motors.output_min();
+}
+
 // init_arm_motors - performs arming process including initialisation of barometer and gyros
 //  returns false if arming failed because of pre-arm checks, arming checks or a gyro calibration failure
 bool Sub::init_arm_motors(bool arming_from_gcs)
@@ -19,8 +25,11 @@ bool Sub::init_arm_motors(bool arming_from_gcs)
         return false;
     }
 
+    // let dataflash know that we're armed (it may open logs e.g.)
+    DataFlash_Class::instance()->set_vehicle_armed(true);
+
     // disable cpu failsafe because initialising everything takes a while
-    failsafe_disable();
+    mainloop_failsafe_disable();
 
     // notify that arming will occur (we do this early to give plenty of warning)
     AP_Notify::flags.armed = true;
@@ -29,8 +38,8 @@ bool Sub::init_arm_motors(bool arming_from_gcs)
         update_notify();
     }
 
-#if HIL_MODE != HIL_MODE_DISABLED || CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    gcs_send_text(MAV_SEVERITY_INFO, "Arming motors");
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    gcs().send_text(MAV_SEVERITY_INFO, "Arming motors");
 #endif
 
     initial_armed_bearing = ahrs.yaw_sensor;
@@ -43,10 +52,9 @@ bool Sub::init_arm_motors(bool arming_from_gcs)
         // Log_Write_Event(DATA_EKF_ALT_RESET);
     } else if (ap.home_state == HOME_SET_NOT_LOCKED) {
         // Reset home position if it has already been set before (but not locked)
-        set_home_to_current_location();
+        set_home_to_current_location(false);
     }
-    calc_distance_and_bearing();
-
+	
     // enable gps velocity based centrefugal force compensation
     ahrs.set_correct_centrifugal(true);
     hal.util->set_soft_armed(true);
@@ -64,10 +72,10 @@ bool Sub::init_arm_motors(bool arming_from_gcs)
     DataFlash.Log_Write_Mode(control_mode, control_mode_reason);
 
     // reenable failsafe
-    failsafe_enable();
+    mainloop_failsafe_enable();
 
     // perf monitor ignores delay due to arming
-    perf_ignore_this_loop();
+    perf_info.ignore_this_loop();
 
     // flag exiting this function
     in_arm_motors = false;
@@ -84,8 +92,8 @@ void Sub::init_disarm_motors()
         return;
     }
 
-#if HIL_MODE != HIL_MODE_DISABLED || CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    gcs_send_text(MAV_SEVERITY_INFO, "Disarming motors");
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    gcs().send_text(MAV_SEVERITY_INFO, "Disarming motors");
 #endif
 
     // save compass offsets learned by the EKF if enabled
@@ -107,14 +115,14 @@ void Sub::init_disarm_motors()
     // reset the mission
     mission.reset();
 
-    // suspend logging
-    if (!DataFlash.log_while_disarmed()) {
-        DataFlash.EnableWrites(false);
-    }
+    DataFlash_Class::instance()->set_vehicle_armed(false);
 
     // disable gps velocity based centrefugal force compensation
     ahrs.set_correct_centrifugal(false);
     hal.util->set_soft_armed(false);
+
+    // clear input holds
+    clear_input_hold();
 }
 
 // motors_output - send output to motors library which will adjust and send to ESCs and servos
@@ -122,17 +130,10 @@ void Sub::motors_output()
 {
     // check if we are performing the motor test
     if (ap.motor_test) {
-        motor_test_output();
-    } else {
-        if (!ap.using_interlock) {
-            // if not using interlock switch, set according to Emergency Stop status
-            // where Emergency Stop is forced false during arming if Emergency Stop switch
-            // is not used. Interlock enabled means motors run, so we must
-            // invert motor_emergency_stop status for motors to run.
-            motors.set_interlock(!ap.motor_emergency_stop);
-        }
-        motors.output();
+        return; // Placeholder
     }
+    motors.set_interlock(true);
+    motors.output();
 }
 
 // translate wpnav roll/pitch outputs to lateral/forward
