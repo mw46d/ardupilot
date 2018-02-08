@@ -259,7 +259,6 @@ bool AP_GPS_NMEA::_term_complete()
                     state.ground_course    = wrap_360(_new_course*0.01f);
                     make_gps_time(_new_date, _new_time * 10);
                     state.last_gps_time_ms = now;
-                    // To-Do: add support for proper reporting of 2D and 3D fix
                     // MARCO no status in this sentences
                     if (state.status < AP_GPS::GPS_OK_FIX_3D) {
                         state.status       = AP_GPS::GPS_OK_FIX_3D;

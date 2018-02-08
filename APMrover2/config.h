@@ -170,4 +170,3 @@
 #ifndef PREARM_DISPLAY_PERIOD  // MARCO
 # define PREARM_DISPLAY_PERIOD 30
 #endif
-

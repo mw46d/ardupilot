@@ -42,4 +42,3 @@ void Rover::set_servos(void)
         g2.motors.output(arming.is_armed() && hal.util->get_soft_armed(), G_Dt);
     }
 }
-

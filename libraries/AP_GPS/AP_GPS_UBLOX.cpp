@@ -15,7 +15,7 @@
 
 //
 //  u-blox GPS driver for ArduPilot
-//	Origin code by Michael Smith, Jordi Munoz and Jose Julio, DIYDrones.com
+//  Origin code by Michael Smith, Jordi Munoz and Jose Julio, DIYDrones.com
 //  Substantially rewritten for new GPS driver structure by Andrew Tridgell
 //
 #include "AP_GPS.h"
@@ -119,7 +119,7 @@ AP_GPS_UBLOX::_request_next_config(void)
         }
         break;
     case STEP_POLL_NAV:
-        if (!_send_message(CLASS_CFG, MSG_CFG_NAV5, nullptr, 0)) {
+        if (!_send_message(CLASS_CFG, MSG_CFG_NAV_SETTINGS, nullptr, 0)) {
             _next_message--;
         }
         break;
@@ -628,7 +628,7 @@ AP_GPS_UBLOX::_parse_gps(void)
                     // the actual ack we will catch it next time through the poll loop, but that
                     // will be a good chunk of time later.
                     break;
-                case MSG_CFG_NAV5:
+                case MSG_CFG_NAV_SETTINGS:
                     _unconfigured_messages &= ~CONFIG_NAV_SETTINGS;
                     break;
                 case MSG_CFG_RATE:
@@ -657,7 +657,7 @@ AP_GPS_UBLOX::_parse_gps(void)
 
     if (_class == CLASS_CFG) {
         switch(_msg_id) {
-        case  MSG_CFG_NAV5:
+        case  MSG_CFG_NAV_SETTINGS:
 	    Debug("Got settings %u min_elev %d drLimit %u\n", 
                   (unsigned)_buffer.nav_settings.dynModel,
                   (int)_buffer.nav_settings.minElev,
@@ -683,7 +683,7 @@ AP_GPS_UBLOX::_parse_gps(void)
             _buffer.nav_settings.mask |= 4;
 
             if (_buffer.nav_settings.mask != 0) {
-                _send_message(CLASS_CFG, MSG_CFG_NAV5,
+                _send_message(CLASS_CFG, MSG_CFG_NAV_SETTINGS,
                               &_buffer.nav_settings,
                               sizeof(_buffer.nav_settings));
                 _unconfigured_messages |= CONFIG_NAV_SETTINGS;
@@ -779,7 +779,6 @@ AP_GPS_UBLOX::_parse_gps(void)
                 mw1.a8[0] = 1; mw1.a8[1] = 0; mw1.a8[2] = 1; mw1.a8[3] = 1;
                 _buffer.gnss.configBlock[4].flags = mw1.u32;
 
-
                 if (memcmp(&start_gnss, &_buffer.gnss, sizeof(start_gnss)) != 0) {
                     _send_message(CLASS_CFG, MSG_CFG_GNSS, &_buffer.gnss, 4 + (8 * _buffer.gnss.numConfigBlocks));
                     _unconfigured_messages |= CONFIG_GNSS;
@@ -807,6 +806,8 @@ AP_GPS_UBLOX::_parse_gps(void)
                       (unsigned)_buffer.sbas.maxSBAS,
                       (unsigned)_buffer.sbas.scanmode2,
                       (unsigned)_buffer.sbas.scanmode1);
+                // MARCO if (_buffer.sbas.mode != gps._sbas_mode) {
+                // MARCO     _buffer.sbas.mode = gps._sbas_mode;
                 // MARCO - set the SBAS values
                 _buffer.sbas.mode = gps._sbas_mode;
                 _buffer.sbas.usage = 0x03;
@@ -818,13 +819,13 @@ AP_GPS_UBLOX::_parse_gps(void)
                 mw1.a8[3] = 0x00;
                 _buffer.sbas.scanmode1 = mw1.u32;
                 if (memcmp(&start_sbas, &_buffer.sbas, sizeof(start_sbas)) != 0) {
+                // End MARCO
                     _send_message(CLASS_CFG, MSG_CFG_SBAS,
                                   &_buffer.sbas,
                                   sizeof(_buffer.sbas));
                     _unconfigured_messages |= CONFIG_SBAS;
                     _cfg_needs_save = true;
-                }
-                else {
+                } else {
                     _unconfigured_messages &= ~CONFIG_SBAS;
                 }
             } else {
