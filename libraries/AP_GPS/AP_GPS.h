@@ -35,8 +35,8 @@
    maximum number of GPS instances available on this platform. If more
    than 1 then redundant sensors may be available
  */
-#define GPS_MAX_RECEIVERS 3 // maximum number of physical GPS sensors allowed - does not include virtual GPS created by blending receiver data
-#define GPS_MAX_INSTANCES  (GPS_MAX_RECEIVERS + 1) // maximumum number of GPs instances including the 'virtual' GPS created by blending receiver data
+#define GPS_MAX_RECEIVERS 3 // MARCO 2 // maximum number of physical GPS sensors allowed - does not include virtual GPS created by blending receiver data
+#define GPS_MAX_INSTANCES  (GPS_MAX_RECEIVERS + 1) // maximum number of GPs instances including the 'virtual' GPS created by blending receiver data
 #define GPS_BLENDED_INSTANCE GPS_MAX_RECEIVERS  // the virtual blended GPS is always the highest instance (2)
 #define GPS_RTK_INJECT_TO_ALL 127
 #define GPS_MAX_RATE_MS 200 // maximum value of rate_ms (i.e. slowest update rate) is 5hz or 200ms
