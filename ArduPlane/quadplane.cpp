@@ -31,6 +31,8 @@ const AP_Param::GroupInfo QuadPlane::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("TRANSITION_MS", 11, QuadPlane, transition_time_ms, 5000),
 
+    // 12 ~ 16 were used by position, velocity and acceleration PIDs
+
     // @Group: P_
     // @Path: ../libraries/AC_AttitudeControl/AC_PosControl.cpp
     AP_SUBGROUPPTR(pos_control, "P", 17, QuadPlane, AC_PosControl),
@@ -382,6 +384,26 @@ static const struct defaults_struct defaults_table_tailsitter[] = {
     { "Q_TRANSITION_MS",   2000 },
 };
 
+/*
+  conversion table for quadplane parameters
+ */
+const AP_Param::ConversionInfo q_conversion_table[] = {
+    { Parameters::k_param_quadplane, 4044, AP_PARAM_FLOAT, "Q_P_POSZ_P" },     //  Q_PZ_P
+    { Parameters::k_param_quadplane, 4045, AP_PARAM_FLOAT, "Q_P_POSXY_P"},     //  Q_PXY_P
+    { Parameters::k_param_quadplane, 4046, AP_PARAM_FLOAT, "Q_P_VELXY_P"},     //  Q_VXY_P
+    { Parameters::k_param_quadplane, 78,   AP_PARAM_FLOAT, "Q_P_VELXY_I"},     //  Q_VXY_I
+    { Parameters::k_param_quadplane, 142,  AP_PARAM_FLOAT, "Q_P_VELXY_IMAX"},  //  Q_VXY_IMAX
+    { Parameters::k_param_quadplane, 206,  AP_PARAM_FLOAT, "Q_P_VELXY_FILT"},  //  Q_VXY_FILT_HZ
+    { Parameters::k_param_quadplane, 4047, AP_PARAM_FLOAT, "Q_P_VELZ_P"},      //  Q_VZ_P
+    { Parameters::k_param_quadplane, 4048, AP_PARAM_FLOAT, "Q_P_ACCZ_P"},      //  Q_AZ_P
+    { Parameters::k_param_quadplane, 80,   AP_PARAM_FLOAT, "Q_P_ACCZ_I"},      //  Q_AZ_I
+    { Parameters::k_param_quadplane, 144,  AP_PARAM_FLOAT, "Q_P_ACCZ_D"},      //  Q_AZ_D
+    { Parameters::k_param_quadplane, 336,  AP_PARAM_FLOAT, "Q_P_ACCZ_IMAX"},   //  Q_AZ_IMAX
+    { Parameters::k_param_quadplane, 400,  AP_PARAM_FLOAT, "Q_P_ACCZ_FILT"},   //  Q_AZ_FILT
+    { Parameters::k_param_quadplane, 464,  AP_PARAM_FLOAT, "Q_P_ACCZ_FF"},     //  Q_AZ_FF
+};
+
+
 QuadPlane::QuadPlane(AP_AHRS_NavEKF &_ahrs) :
     ahrs(_ahrs)
 {
@@ -559,6 +581,8 @@ bool QuadPlane::setup(void)
 
     
     setup_defaults();
+
+    AP_Param::convert_old_parameters(&q_conversion_table[0], ARRAY_SIZE(q_conversion_table));
     
     gcs().send_text(MAV_SEVERITY_INFO, "QuadPlane initialised");
     initialised = true;
@@ -694,7 +718,7 @@ void QuadPlane::control_stabilize(void)
 // run the multicopter Z controller
 void QuadPlane::run_z_controller(void)
 {
-    uint32_t now = AP_HAL::millis();
+    const uint32_t now = AP_HAL::millis();
     if (now - last_pidz_active_ms > 2000) {
         // set alt target to current height on transition. This
         // starts the Z controller off with the right values
@@ -936,7 +960,7 @@ void QuadPlane::control_loiter()
     plane.nav_roll_cd = wp_nav->get_roll();
     plane.nav_pitch_cd = wp_nav->get_pitch();
 
-    uint32_t now = AP_HAL::millis();
+    const uint32_t now = AP_HAL::millis();
     if (now - last_pidz_init_ms < (uint32_t)transition_time_ms*2 && !is_tailsitter()) {
         // we limit pitch during initial transition
         float pitch_limit_cd = linear_interpolate(loiter_initial_pitch_cd, aparm.angle_max,
@@ -1066,7 +1090,7 @@ float QuadPlane::assist_climb_rate_cms(void)
     climb_rate = constrain_float(climb_rate, -wp_nav->get_speed_down(), wp_nav->get_speed_up());
 
     // bring in the demanded climb rate over 2 seconds
-    uint16_t dt_since_start = last_pidz_active_ms - last_pidz_init_ms;
+    const uint32_t dt_since_start = last_pidz_active_ms - last_pidz_init_ms;
     if (dt_since_start < 2000) {
         climb_rate = linear_interpolate(0, climb_rate, dt_since_start, 0, 2000);
     }
@@ -1136,10 +1160,11 @@ bool QuadPlane::assistance_needed(float aspeed)
         in_angle_assist = false;
         return false;
     }
+    const uint32_t now = AP_HAL::millis();
     if (angle_error_start_ms == 0) {
-        angle_error_start_ms = AP_HAL::millis();
+        angle_error_start_ms = now;
     }
-    bool ret = (AP_HAL::millis() - angle_error_start_ms) >= 1000U;
+    bool ret = (now - angle_error_start_ms) >= 1000U;
     if (ret && !in_angle_assist) {
         in_angle_assist = true;
         gcs().send_text(MAV_SEVERITY_INFO, "Angle assist r=%d p=%d",
@@ -1362,7 +1387,7 @@ void QuadPlane::update(void)
     if (!in_vtol_mode()) {
         update_transition();
     } else {
-        uint32_t now = AP_HAL::millis();
+        const uint32_t now = AP_HAL::millis();
 
         assisted_flight = false;
         
@@ -1514,7 +1539,7 @@ void QuadPlane::motors_output(void)
     if (motors->armed()) {
         plane.DataFlash.Log_Write_Rate(plane.ahrs, *motors, *attitude_control, *pos_control);
         Log_Write_QControl_Tuning();
-        uint32_t now = AP_HAL::millis();
+        const uint32_t now = AP_HAL::millis();
         if (now - last_ctrl_log_ms > 100) {
             attitude_control->control_monitor_log();
         }
@@ -1912,13 +1937,14 @@ void QuadPlane::setup_target_position(void)
     poscontrol.target.y = diff2d.y * 100;
     poscontrol.target.z = plane.next_WP_loc.alt - origin.alt;
 
+    const uint32_t now = AP_HAL::millis();
     if (!locations_are_same(loc, last_auto_target) ||
         plane.next_WP_loc.alt != last_auto_target.alt ||
-        millis() - last_loiter_ms > 500) {
+        now - last_loiter_ms > 500) {
         wp_nav->set_wp_destination(poscontrol.target);
         last_auto_target = loc;
     }
-    last_loiter_ms = millis();
+    last_loiter_ms = now;
     
     // setup vertical speed and acceleration
     pos_control->set_speed_z(-pilot_velocity_z_max, pilot_velocity_z_max);
@@ -2135,7 +2161,7 @@ void QuadPlane::check_land_complete(void)
         // only apply to final landing phase
         return;
     }
-    uint32_t now = AP_HAL::millis();
+    const uint32_t now = AP_HAL::millis();
     bool might_be_landed =  (landing_detect.lower_limit_start_ms != 0 &&
                              now - landing_detect.lower_limit_start_ms > 1000);
     if (!might_be_landed) {
