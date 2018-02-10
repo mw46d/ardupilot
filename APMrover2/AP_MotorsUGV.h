@@ -69,6 +69,7 @@ public:
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
 
+    AP_Int8 throttle_min() { return _throttle_min; }  // MARCO
 protected:
 
     // setup pwm output type

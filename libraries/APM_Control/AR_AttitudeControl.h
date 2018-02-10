@@ -73,7 +73,8 @@ public:
     // return a throttle output from -1 to +1 given a desired speed in m/s (use negative speeds to travel backwards)
     //   motor_limit should be true if motors have hit their upper or lower limits
     //   cruise speed should be in m/s, cruise throttle should be a number from -1 to +1
-    float get_throttle_out_speed(float desired_speed, bool motor_limit_low, bool motor_limit_high, float cruise_speed, float cruise_throttle);
+    float get_throttle_out_speed(float desired_speed, bool motor_limit_low, bool motor_limit_high, float cruise_speed, float cruise_throttle,
+        float current_throttle = 0.0);  // MARCO
 
     // return a throttle output from -1 to +1 to perform a controlled stop.  stopped is set to true once stop has been completed
     float get_throttle_out_stop(bool motor_limit_low, bool motor_limit_high, float cruise_speed, float cruise_throttle, bool &stopped);

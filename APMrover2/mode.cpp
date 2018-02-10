@@ -41,6 +41,13 @@ bool Mode::enter()
         }
     }
 
+    if (throttle < g2.motors.throttle_min()) {
+        throttle = g2.motors.throttle_min();
+    }
+    if (throttle < 0) {
+        throttle = 0;
+    }
+
     return _enter();
 }
 
@@ -172,9 +179,12 @@ void Mode::calc_throttle(float target_speed, bool nudge_allowed)
     }
 
     // call throttle controller and convert output to -100 to +100 range
-    float throttle_out = 100.0f * attitude_control.get_throttle_out_speed(target_speed, g2.motors.limit.throttle_lower, g2.motors.limit.throttle_upper, g.speed_cruise, g.throttle_cruise * 0.01f);
+    float throttle_out = 100.0f * attitude_control.get_throttle_out_speed(target_speed, g2.motors.limit.throttle_lower, g2.motors.limit.throttle_upper, g.speed_cruise, g.throttle_cruise * 0.01f,
+        throttle * 0.01f);  // MARCO
 
     // send to motor
+    throttle = throttle_out;
+
     g2.motors.set_throttle(throttle_out);
 }
 

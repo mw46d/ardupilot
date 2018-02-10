@@ -156,6 +156,7 @@ protected:
     float _desired_speed;       // desired speed in m/s
     float _desired_speed_final; // desired speed in m/s when we reach the destination
     float _speed_error;         // ground speed error in m/s
+    AP_Int8 throttle;           // MARCO
 };
 
 

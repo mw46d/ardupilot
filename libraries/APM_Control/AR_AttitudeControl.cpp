@@ -307,7 +307,8 @@ bool AR_AttitudeControl::get_lat_accel(float &lat_accel) const
 // return a throttle output from -1 to +1 given a desired speed in m/s (use negative speeds to travel backwards)
 //   motor_limit should be true if motors have hit their upper or lower limits
 //   cruise speed should be in m/s, cruise throttle should be a number from -1 to +1
-float AR_AttitudeControl::get_throttle_out_speed(float desired_speed, bool motor_limit_low, bool motor_limit_high, float cruise_speed, float cruise_throttle)
+float AR_AttitudeControl::get_throttle_out_speed(float desired_speed, bool motor_limit_low, bool motor_limit_high, float cruise_speed, float cruise_throttle,
+    float current_throttle) // MARCO
 {
     // get speed forward
     float speed;
@@ -370,7 +371,14 @@ float AR_AttitudeControl::get_throttle_out_speed(float desired_speed, bool motor
     }
 
     // calculate final output
+    /* MARCO use a sum over time, leave the line to make the compiler happy
+    */
     float throttle_out = (ff+p+i+d+throttle_base);
+
+    if (current_throttle != 0.0) {
+        throttle_out = current_throttle + (p + i + d);
+    }
+    // End MARCO
 
     // clear local limit flags used to stop i-term build-up as we stop reversed outputs going to motors
     _throttle_limit_low = false;
