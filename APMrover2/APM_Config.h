@@ -2,4 +2,3 @@
 // their default values, place the appropriate #define statements here.
 
 #define MOUNT DISABLED
-#define CAMERA DISABLED
