@@ -294,6 +294,9 @@ void Rover::update_proximity(void)
 // not functioning correctly.
 void Rover::update_sensor_status_flags(void)
 {
+    static unsigned char mw_bits = 0;
+    unsigned char mw_bits1 = 0;
+
     // default sensors present
     control_sensors_present = MAVLINK_SENSOR_PRESENT_DEFAULT;
 
@@ -312,6 +315,7 @@ void Rover::update_sensor_status_flags(void)
     }
     if (rover.g2.proximity.get_status() > AP_Proximity::Proximity_NotConnected) {
         control_sensors_present |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+        mw_bits1 |= 0x01;
     }
 
     // all present sensors enabled by default except rate control, attitude stabilization, yaw, altitude, position control and motor output which we will set individually
@@ -364,16 +368,20 @@ void Rover::update_sensor_status_flags(void)
 
     if (rangefinder.num_sensors() > 0) {
         control_sensors_present |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+        mw_bits1 |= 0x02;
         if (g.rangefinder_trigger_cm > 0) {
             control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+            mw_bits1 |= 0x04;
         }
         AP_RangeFinder_Backend *s = rangefinder.get_backend(0);
         if (s != nullptr && s->has_data()) {
             control_sensors_health |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+            mw_bits1 |= 0x08;
         }
     }
     if (rover.g2.proximity.get_status() < AP_Proximity::Proximity_Good) {
         control_sensors_health &= ~MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+        mw_bits1 |= 0x10;
     }
     if (rover.DataFlash.logging_failed()) {
         control_sensors_health &= ~MAV_SYS_STATUS_LOGGING;
@@ -384,6 +392,12 @@ void Rover::update_sensor_status_flags(void)
         control_sensors_enabled &= ~(MAV_SYS_STATUS_SENSOR_3D_GYRO | MAV_SYS_STATUS_SENSOR_3D_ACCEL);
         control_sensors_health &= ~(MAV_SYS_STATUS_SENSOR_3D_GYRO | MAV_SYS_STATUS_SENSOR_3D_ACCEL);
     }
+
+    if (mw_bits != mw_bits1) {
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "mw update_sensor_status_flags bits=0x%02x", mw_bits1);
+        mw_bits = mw_bits1;
+    }
+
 #if FRSKY_TELEM_ENABLED == ENABLED
     // give mask of error flags to Frsky_Telemetry
     frsky_telemetry.update_sensor_status_flags(~control_sensors_health & control_sensors_enabled & control_sensors_present);
