@@ -371,6 +371,7 @@ void Copter::update_sensor_status_flags(void)
     case GUIDED_NOGPS:
     case SPORT:
     case AUTOTUNE:
+    case FLOWHOLD:
         control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_Z_ALTITUDE_CONTROL;
         break;
     default:
@@ -551,4 +552,9 @@ void Copter::winch_update()
 {
     g2.wheel_encoder.update();
     g2.winch.update();
+}
+
+void Copter::temp_cal_update(void)
+{
+    g2.temp_calibration.update();
 }

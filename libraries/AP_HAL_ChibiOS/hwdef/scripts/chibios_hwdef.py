@@ -509,6 +509,11 @@ def write_I2C_config(f):
     for dev in i2c_list:
         if not dev.startswith('I2C') or dev[3] not in "1234":
             error("Bad I2C_ORDER element %s" % dev)
+        if dev + "_SCL" in bylabel:
+            p = bylabel[dev + "_SCL"]
+            f.write(
+                '#define HAL_%s_SCL_AF %d\n' % (dev, p.af)
+            )
         n = int(dev[3:])
         devlist.append('HAL_I2C%u_CONFIG' % n)
         f.write(
@@ -734,7 +739,10 @@ def write_hwdef_header(outfilename):
     write_peripheral_enable(f)
     write_prototype_file()
 
-    dma_resolver.write_dma_header(f, periph_list, mcu_type, dma_exclude=get_dma_exclude(periph_list))
+    dma_resolver.write_dma_header(f, periph_list, mcu_type,
+                                  dma_exclude=get_dma_exclude(periph_list),
+                                  dma_priority=get_config('DMA_PRIORITY',default=''),
+                                  dma_noshare=get_config('DMA_NOSHARE',default=''))
 
     write_UART_config(f)
 
@@ -823,6 +831,7 @@ def build_peripheral_list():
 
 def process_line(line):
     '''process one line of pin definition file'''
+    global allpins
     a = shlex.split(line)
     # keep all config lines for later use
     alllines.append(line)
@@ -859,11 +868,24 @@ def process_line(line):
     if a[0] == 'SPIDEV':
         spidev.append(a[1:])
     if a[0] == 'undef':
+        print("Removing %s" % a[1])
         config.pop(a[1], '')
+        bytype.pop(a[1],'')
+        bylabel.pop(a[1],'')
         #also remove all occurences of defines in previous lines if any
-        for line in alllines:
+        for line in alllines[:]:
             if line.startswith('define') and a[1] in line:
                 alllines.remove(line)
+        newpins = []
+        for pin in allpins:
+            if pin.type == a[1]:
+                continue
+            if pin.label == a[1]:
+                continue
+            if pin.portpin == a[1]:
+                continue
+            newpins.append(pin)
+        allpins = newpins
 
 
 def process_file(filename):
