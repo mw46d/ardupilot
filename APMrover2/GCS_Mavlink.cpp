@@ -684,6 +684,18 @@ void GCS_MAVLINK_Rover::handle_change_alt_request(AP_Mission::Mission_Command &c
     // nothing to do
 }
 
+void GCS_MAVLINK_Rover::handle_lidar_packet(mavlink_message_t *msg)
+{
+    mavlink_angular_distance_sensor_t m;
+    mavlink_msg_angular_distance_sensor_decode(msg, &m);
+
+    if (rover.lidar != NULL) {
+        rover.lidar->update(m);
+    }
+
+    // gcs().send_text(MAV_SEVERITY_CRITICAL, "MW handle_lidar_packet %d", m.ranges[0]);
+}
+
 void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
 {
     switch (msg->msgid) {
@@ -1441,6 +1453,10 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_VISION_POSITION_DELTA:
         rover.g2.visual_odom.handle_msg(msg);
+        break;
+
+    case MAVLINK_MSG_ID_ANGULAR_DISTANCE_SENSOR:
+        handle_lidar_packet(msg);
         break;
 
     default:

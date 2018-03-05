@@ -334,7 +334,17 @@ void Mode::calc_steering_from_lateral_acceleration(float lat_accel, bool reverse
 {
     // add obstacle avoidance response to lateral acceleration target
     if (!reversed) {
-        lat_accel += (rover.obstacle.turn_angle / 45.0f) * g.turn_max_g;
+        if (rover.lidar != NULL && rover.lidar->active()) {
+            float l = rover.lidar->calc_steering(lat_accel);
+
+            if (l != lat_accel) {
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "MW lidar %f -> %f", lat_accel, l);
+                lat_accel = l;
+            }
+        }
+        else {
+            lat_accel += (rover.obstacle.turn_angle / 45.0f) * g.turn_max_g;
+        }
     }
 
     // constrain to max G force

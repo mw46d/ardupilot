@@ -96,6 +96,8 @@
 #include "Parameters.h"
 #include "GCS_Mavlink.h"
 #include "GCS_Rover.h"
+// MARCO
+#include "Lidar.h"
 
 class Rover : public AP_HAL::HAL::Callbacks {
 public:
@@ -116,6 +118,7 @@ public:
     friend class ModeManual;
     friend class ModeRTL;
     friend class ModeSmartRTL;
+    friend class Lidar; // MARCO
 
     Rover(void);
 
@@ -398,6 +401,7 @@ private:
         LowPassFilterFloat throttle_filt = LowPassFilterFloat(2.0f);
     } cruise_learn;
 
+    Lidar *lidar;
 private:
 
     // APMrover2.cpp
