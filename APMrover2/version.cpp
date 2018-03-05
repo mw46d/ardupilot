@@ -29,7 +29,7 @@ const AP_FWVersion Rover::fwver{
 #ifndef GIT_VERSION
     .fw_string = THISFIRMWARE,
 #else
-    .fw_string = THISFIRMWARE " (" GIT_VERSION ")" " " __DATE__ " " __TIME__,
+    .fw_string = THISFIRMWARE " (" GIT_REPO "@" GIT_VERSION ")" " " __DATE__ " " __TIME__,
     .fw_hash_str = GIT_VERSION,
 #endif
 #ifdef PX4_GIT_VERSION
