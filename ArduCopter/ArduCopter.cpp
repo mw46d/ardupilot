@@ -93,29 +93,41 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK(read_aux_switches,     10,     50),
     SCHED_TASK(arm_motors_check,      10,     50),
 #if TOY_MODE_ENABLED == ENABLED
-    SCHED_TASK(toy_mode_update,       10,     50),
+    SCHED_TASK_CLASS(ToyMode,              &copter.g2.toy_mode,         update,          10,  50),
 #endif
     SCHED_TASK(auto_disarm_check,     10,     50),
     SCHED_TASK(auto_trim,             10,     75),
+#if RANGEFINDER_ENABLED == ENABLED
     SCHED_TASK(read_rangefinder,      20,    100),
-    SCHED_TASK(update_proximity,     100,     50),
-    SCHED_TASK(update_beacon,        400,     50),
+#endif
+#if PROXIMITY_ENABLED == ENABLED
+    SCHED_TASK_CLASS(AP_Proximity,         &copter.g2.proximity,        update,         100,  50),
+#endif
+#if BEACON_ENABLED == ENABLED
+    SCHED_TASK_CLASS(AP_Beacon,            &copter.g2.beacon,           update,         400,  50),
+#endif
+#if VISUAL_ODOMETRY_ENABLED == ENABLED
     SCHED_TASK(update_visual_odom,   400,     50),
+#endif
     SCHED_TASK(update_altitude,       10,    100),
     SCHED_TASK(run_nav_updates,       50,    100),
     SCHED_TASK(update_throttle_hover,100,     90),
-    SCHED_TASK(smart_rtl_save_position, 3,    100),
+#if MODE_SMARTRTL_ENABLED == ENABLED
+    SCHED_TASK_CLASS(Copter::ModeSmartRTL, &copter.mode_smartrtl,       save_position,    3, 100),
+#endif
     SCHED_TASK(three_hz_loop,          3,     75),
     SCHED_TASK(compass_accumulate,   100,    100),
-    SCHED_TASK(barometer_accumulate,  50,     90),
+    SCHED_TASK_CLASS(AP_Baro,              &copter.barometer,           accumulate,      50,  90),
 #if PRECISION_LANDING == ENABLED
     SCHED_TASK(update_precland,      400,     50),
 #endif
 #if FRAME_CONFIG == HELI_FRAME
     SCHED_TASK(check_dynamic_flight,  50,     75),
 #endif
+#if LOGGING_ENABLED == ENABLED
     SCHED_TASK(fourhundred_hz_logging,400,    50),
-    SCHED_TASK(update_notify,         50,     90),
+#endif
+    SCHED_TASK_CLASS(AP_Notify,            &copter.notify,              update,          50,  90),
     SCHED_TASK(one_hz_loop,            1,    100),
     SCHED_TASK(ekf_check,             10,     75),
     SCHED_TASK(gpsglitch_check,       10,     50),
@@ -125,29 +137,39 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK(gcs_send_heartbeat,     1,    110),
     SCHED_TASK(gcs_send_deferred,     50,    550),
     SCHED_TASK(gcs_data_stream_send,  50,    550),
-    SCHED_TASK(update_mount,          50,     75),
-    SCHED_TASK(update_trigger,        50,     75),
+#if MOUNT == ENABLED
+    SCHED_TASK_CLASS(AP_Mount,             &copter.camera_mount,        update,          50,  75),
+#endif
+#if CAMERA == ENABLED
+    SCHED_TASK_CLASS(AP_Camera,            &copter.camera,              update,          50,  75),
+#endif
+#if LOGGING_ENABLED == ENABLED
     SCHED_TASK(ten_hz_logging_loop,   10,    350),
     SCHED_TASK(twentyfive_hz_logging, 25,    110),
-    SCHED_TASK(dataflash_periodic,    400,    300),
-    SCHED_TASK(ins_periodic,         400,     50),
-    SCHED_TASK(perf_update,           0.1,    75),
+    SCHED_TASK_CLASS(DataFlash_Class,      &copter.DataFlash,           periodic_tasks, 400, 300),
+#endif
+    SCHED_TASK_CLASS(AP_InertialSensor,    &copter.ins,                 periodic,       400,  50),
+    SCHED_TASK_CLASS(AP_Scheduler,         &copter.scheduler,           update_logging, 0.1,  75),
     SCHED_TASK(read_receiver_rssi,    10,     75),
     SCHED_TASK(rpm_update,            10,    200),
     SCHED_TASK(compass_cal_update,   100,    100),
     SCHED_TASK(accel_cal_update,      10,    100),
-    SCHED_TASK(temp_cal_update,       10,    100),
+    SCHED_TASK_CLASS(AP_TempCalibration,   &copter.g2.temp_calibration, update,          10, 100),
 #if ADSB_ENABLED == ENABLED
     SCHED_TASK(avoidance_adsb_update, 10,    100),
 #endif
 #if ADVANCED_FAILSAFE == ENABLED
     SCHED_TASK(afs_fs_check,          10,    100),
 #endif
+#if AC_TERRAIN == ENABLED
     SCHED_TASK(terrain_update,        10,    100),
-#if GRIPPER_ENABLED == ENABLED
-    SCHED_TASK(gripper_update,        10,     75),
 #endif
+#if GRIPPER_ENABLED == ENABLED
+    SCHED_TASK_CLASS(AP_Gripper,           &copter.g2.gripper,          update,          10,  75),
+#endif
+#if WINCH_ENABLED == ENABLED
     SCHED_TASK(winch_update,          10,     50),
+#endif
 #ifdef USERHOOK_FASTLOOP
     SCHED_TASK(userhook_FastLoop,    100,     75),
 #endif
@@ -163,8 +185,10 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #ifdef USERHOOK_SUPERSLOWLOOP
     SCHED_TASK(userhook_SuperSlowLoop, 1,   75),
 #endif
-    SCHED_TASK(button_update,          5,    100),
-    SCHED_TASK(stats_update,           1,    100),
+    SCHED_TASK_CLASS(AP_Button,            &copter.g2.button,           update,           5, 100),
+#if STATS_ENABLED == ENABLED
+    SCHED_TASK_CLASS(AP_Stats,             &copter.g2.stats,            update,           1, 100),
+#endif
 };
 
 
@@ -179,70 +203,13 @@ void Copter::setup()
     init_ardupilot();
 
     // initialise the main loop scheduler
-    scheduler.init(&scheduler_tasks[0], ARRAY_SIZE(scheduler_tasks));
-
-    // setup initial performance counters
-    perf_info.reset(scheduler.get_loop_rate_hz());
-    fast_loopTimer = AP_HAL::micros();
-}
-
-void Copter::perf_update(void)
-{
-    if (should_log(MASK_LOG_PM))
-        Log_Write_Performance();
-    if (scheduler.debug()) {
-        gcs().send_text(MAV_SEVERITY_WARNING, "PERF: %u/%u max=%lu min=%lu avg=%lu sd=%lu",
-                          (unsigned)perf_info.get_num_long_running(),
-                          (unsigned)perf_info.get_num_loops(),
-                          (unsigned long)perf_info.get_max_time(),
-                          (unsigned long)perf_info.get_min_time(),
-                          (unsigned long)perf_info.get_avg_time(),
-                          (unsigned long)perf_info.get_stddev_time());
-    }
-    perf_info.reset(scheduler.get_loop_rate_hz());
-    pmTest1 = 0;
-}
-
-/*
-  update AP_Stats
- */
-void Copter::stats_update(void)
-{
-    g2.stats.update();
+    scheduler.init(&scheduler_tasks[0], ARRAY_SIZE(scheduler_tasks), MASK_LOG_PM);
 }
 
 void Copter::loop()
 {
-    // wait for an INS sample
-    ins.wait_for_sample();
-
-    uint32_t timer = micros();
-
-    // check loop time
-    perf_info.check_loop_time(timer - fast_loopTimer);
-
-    // used by PI Loops
-    G_Dt                    = (float)(timer - fast_loopTimer) / 1000000.0f;
-    fast_loopTimer          = timer;
-
-    // for mainloop failure monitoring
-    mainLoop_count++;
-
-    // Execute the fast loop
-    // ---------------------
-    fast_loop();
-
-    // tell the scheduler one tick has passed
-    scheduler.tick();
-
-    // run all the tasks that are due to run. Note that we only
-    // have to call this once per loop, as the tasks are scheduled
-    // in multiples of the main loop tick. So if they don't run on
-    // the first call to the scheduler they won't run on a later
-    // call until scheduler.tick() is called again
-    const uint32_t loop_us = scheduler.get_loop_period_us();
-    const uint32_t time_available = (timer + loop_us) - micros();
-    scheduler.run(time_available > loop_us ? 0u : time_available);
+    scheduler.loop();
+    G_Dt = scheduler.get_last_loop_time_s();
 }
 
 
@@ -325,24 +292,6 @@ void Copter::throttle_loop()
     update_ground_effect_detector();
 }
 
-// update_mount - update camera mount position
-// should be run at 50hz
-void Copter::update_mount()
-{
-#if MOUNT == ENABLED
-    // update camera mount's position
-    camera_mount.update();
-#endif
-}
-
-// update camera trigger
-void Copter::update_trigger(void)
-{
-#if CAMERA == ENABLED
-    camera.update_trigger();
-#endif
-}
-
 // update_batt_compass - read battery and compass
 // should be called at 10hz
 void Copter::update_batt_compass(void)
@@ -400,8 +349,14 @@ void Copter::ten_hz_logging_loop()
     }
     if (should_log(MASK_LOG_CTUN)) {
         attitude_control->control_monitor_log();
-        Log_Write_Proximity();
-        Log_Write_Beacon();
+#if PROXIMITY_ENABLED == ENABLED
+        DataFlash.Log_Write_Proximity(g2.proximity);  // Write proximity sensor distances
+#endif
+#if BEACON_ENABLED == ENABLED
+        if (g2.beacon.enabled()) {
+            DataFlash.Log_Write_Beacon(g2.beacon);
+        }
+#endif
     }
 #if FRAME_CONFIG == HELI_FRAME
     Log_Write_Heli();
@@ -431,16 +386,6 @@ void Copter::twentyfive_hz_logging()
     // log output
     Log_Write_Precland();
 #endif
-}
-
-void Copter::dataflash_periodic(void)
-{
-    DataFlash.periodic_tasks();
-}
-
-void Copter::ins_periodic(void)
-{
-    ins.periodic();
 }
 
 // three_hz_loop - 3.3hz loop
@@ -499,7 +444,9 @@ void Copter::one_hz_loop()
     // log terrain data
     terrain_logging();
 
+#if ADSB_ENABLED == ENABLED
     adsb.set_is_flying(!ap.land_complete);
+#endif
 
     // update error mask of sensors and subsystems. The mask uses the
     // MAV_SYS_STATUS_* values from mavlink. If a bit is set then it
@@ -538,11 +485,6 @@ void Copter::update_GPS(void)
         camera.update();
 #endif
     }
-}
-
-void Copter::smart_rtl_save_position()
-{
-    mode_smartrtl.save_position();
 }
 
 void Copter::init_simple_bearing()

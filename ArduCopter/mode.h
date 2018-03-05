@@ -6,6 +6,7 @@ class Mode {
     friend class Copter;
     friend class AP_Arming_Copter;
     friend class ToyMode;
+    friend class GCS_MAVLINK_Copter;
 
     // constructor
     Mode(void);
@@ -32,6 +33,7 @@ protected:
     virtual void run_autopilot() {}
     virtual uint32_t wp_distance() const { return 0; }
     virtual int32_t wp_bearing() const { return 0; }
+    virtual bool in_guided_mode() const { return false; }
 
     // convenience references to avoid code churn in conversion:
     Parameters &g;
@@ -130,7 +132,7 @@ class ModeAcro_Heli : public ModeAcro {
 
 public:
     // inherit constructor
-    using Copter::Mode::Mode;
+    using Copter::ModeAcro::Mode;
 
     bool init(bool ignore_checks) override;
     void run() override;
@@ -178,6 +180,7 @@ public:
     bool requires_GPS() const override { return true; }
     bool has_manual_throttle() const override { return false; }
     bool allows_arming(bool from_gcs) const override { return false; };
+    bool in_guided_mode() const { return mode() == Auto_NavGuided; }
 
     // Auto
     AutoMode mode() const { return _mode; }
@@ -269,7 +272,9 @@ private:
 #if GRIPPER_ENABLED == ENABLED
     void do_gripper(const AP_Mission::Mission_Command& cmd);
 #endif
+#if WINCH_ENABLED == ENABLED
     void do_winch(const AP_Mission::Mission_Command& cmd);
+#endif
     void do_payload_place(const AP_Mission::Mission_Command& cmd);
     void do_RTL(void);
 
@@ -366,8 +371,10 @@ private:
     void twitching_measure_acceleration(float &rate_of_change, float rate_measurement, float &rate_measurement_max);
     void get_poshold_attitude(float &roll_cd, float &pitch_cd, float &yaw_cd);
 
+#if LOGGING_ENABLED == ENABLED
     void Log_Write_AutoTune(uint8_t axis, uint8_t tune_step, float meas_target, float meas_min, float meas_max, float new_gain_rp, float new_gain_rd, float new_gain_sp, float new_ddt);
     void Log_Write_AutoTuneDetails(float angle_cd, float rate_cds);
+#endif
 
     void send_step_string();
     const char *level_issue_string() const;
@@ -581,7 +588,7 @@ private:
 };
 
 
-#if OPTFLOW == ENABLED
+#if !HAL_MINIMIZE_FEATURES && OPTFLOW == ENABLED
 /*
   class to support FLOWHOLD mode, which is a position hold mode using
   optical flow directly, avoiding the need for a rangefinder
@@ -678,11 +685,12 @@ public:
     bool has_manual_throttle() const override { return false; }
     bool allows_arming(bool from_gcs) const override { return from_gcs; }
     bool is_autopilot() const override { return true; }
+    bool in_guided_mode() const { return true; }
 
     void set_angle(const Quaternion &q, float climb_rate_cms, bool use_yaw_rate, float yaw_rate_rads);
     bool set_destination(const Vector3f& destination, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false);
     bool set_destination(const Location_Class& dest_loc, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false);
-    void set_velocity(const Vector3f& velocity, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false);
+    void set_velocity(const Vector3f& velocity, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false, bool log_request = true);
     bool set_destination_posvel(const Vector3f& destination, const Vector3f& velocity, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false);
 
     void limit_clear();
@@ -1010,7 +1018,7 @@ class ModeStabilize_Heli : public ModeStabilize {
 
 public:
     // inherit constructor
-    using Copter::Mode::Mode;
+    using Copter::ModeStabilize::Mode;
 
     bool init(bool ignore_checks) override;
     void run() override;
@@ -1059,6 +1067,7 @@ private:
 
 };
 
+// modes below rely on Guided mode so must be declared at the end (instead of in alphabetical order)
 
 class ModeAvoidADSB : public ModeGuided {
 
@@ -1083,4 +1092,27 @@ protected:
 
 private:
 
+};
+
+class ModeFollow : public ModeGuided {
+
+public:
+
+    // inherit constructor
+    using Copter::ModeGuided::Mode;
+
+    bool init(bool ignore_checks) override;
+    void run() override;
+
+    bool requires_GPS() const override { return true; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(bool from_gcs) const override { return false; }
+    bool is_autopilot() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "FOLLOW"; }
+    const char *name4() const override { return "FOLL"; }
+
+    uint32_t last_log_ms;   // system time of last time desired velocity was logging
 };

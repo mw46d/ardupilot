@@ -1,5 +1,7 @@
 #include "Copter.h"
 
+#if MODE_AUTO_ENABLED == ENABLED
+
 // start_command - this function will be called when the ap_mission lib wishes to start a new command
 bool Copter::ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
 {
@@ -160,9 +162,11 @@ bool Copter::ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
         break;
 #endif
 
+#if WINCH_ENABLED == ENABLED
     case MAV_CMD_DO_WINCH:                             // Mission command to control winch
         do_winch(cmd);
         break;
+#endif
 
     default:
         // do nothing with unrecognized MAVLink messages
@@ -664,6 +668,7 @@ void Copter::ModeAuto::do_guided_limits(const AP_Mission::Mission_Command& cmd)
 }
 #endif
 
+#if WINCH_ENABLED == ENABLED
 // control winch based on mission command
 void Copter::ModeAuto::do_winch(const AP_Mission::Mission_Command& cmd)
 {
@@ -686,6 +691,7 @@ void Copter::ModeAuto::do_winch(const AP_Mission::Mission_Command& cmd)
             break;
     }
 }
+#endif
 
 /********************************************************************************/
 //	Verify Nav (Must) commands
@@ -1188,3 +1194,5 @@ void Copter::ModeAuto::do_mount_control(const AP_Mission::Mission_Command& cmd)
     copter.camera_mount.set_angle_targets(cmd.content.mount_control.roll, cmd.content.mount_control.pitch, cmd.content.mount_control.yaw);
 #endif
 }
+
+#endif

@@ -551,13 +551,11 @@ void ToyMode::update()
 
     case ACTION_MODE_FLOW:
         // toggle flow hold
-#if 0
         if (old_mode != FLOWHOLD) {
             new_mode = FLOWHOLD;
         } else {
             new_mode = ALT_HOLD;
         }
-#endif
         break;
         
     case ACTION_DISARM:
@@ -637,22 +635,28 @@ void ToyMode::update()
     
     if (new_mode != copter.control_mode) {
         load_test.running = false;
+#if AC_FENCE == ENABLED
         copter.fence.enable(false);
+#endif
         if (set_and_remember_mode(new_mode, MODE_REASON_TX_COMMAND)) {
             gcs().send_text(MAV_SEVERITY_INFO, "Tmode: mode %s", copter.flightmode->name4());
             // force fence on in all GPS flight modes
+#if AC_FENCE == ENABLED
             if (copter.flightmode->requires_GPS()) {
                 copter.fence.enable(true);
             }
+#endif
         } else {
             gcs().send_text(MAV_SEVERITY_ERROR, "Tmode: %u FAILED", (unsigned)new_mode);
             if (new_mode == RTL) {
                 // if we can't RTL then land
                 gcs().send_text(MAV_SEVERITY_ERROR, "Tmode: LANDING");
                 set_and_remember_mode(LAND, MODE_REASON_TMODE);
+#if AC_FENCE == ENABLED
                 if (copter.landing_with_GPS()) {
                     copter.fence.enable(true);
                 }
+#endif
             }
         }
     }
@@ -966,16 +970,6 @@ void ToyMode::send_named_int(const char *name, int32_t value)
 {
     mavlink_msg_named_value_int_send(MAVLINK_COMM_1, AP_HAL::millis(), name, value);
 }
-
-#if TOY_MODE_ENABLED == ENABLED
-/*
-  called from scheduler at 10Hz
- */
-void Copter::toy_mode_update(void)
-{
-    g2.toy_mode.update();
-}
-#endif
 
 /*
   limit maximum thrust based on voltage

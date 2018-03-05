@@ -60,6 +60,7 @@
  #define EPM_ENABLED            DISABLED
  #define CLI_ENABLED            DISABLED
  #define GRIPPER_ENABLED        DISABLED // not for large quads
+ #define WINCH_ENABLED          DISABLED
  
  
  // disable for debugging with -O0
@@ -70,4 +71,6 @@
 // #define ADSB_ENABLED          DISABLED
 
 
- #define LOGGING_ENABLED ENABLED
+#define LOGGING_ENABLED ENABLED
+
+#define STATS_ENABLED DISABLED // to reduce flash degradation

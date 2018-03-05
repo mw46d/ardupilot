@@ -180,37 +180,6 @@ void Copter::Log_Write_Control_Tuning()
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
-struct PACKED log_Performance {
-    LOG_PACKET_HEADER;
-    uint64_t time_us;
-    uint16_t num_long_running;
-    uint16_t num_loops;
-    uint32_t max_time;
-    int16_t  pm_test;
-    uint8_t i2c_lockup_count;
-    uint16_t ins_error_count;
-    uint32_t log_dropped;
-    uint32_t mem_avail;
-};
-
-// Write a performance monitoring packet
-void Copter::Log_Write_Performance()
-{
-    struct log_Performance pkt = {
-        LOG_PACKET_HEADER_INIT(LOG_PERFORMANCE_MSG),
-        time_us          : AP_HAL::micros64(),
-        num_long_running : perf_info.get_num_long_running(),
-        num_loops        : perf_info.get_num_loops(),
-        max_time         : perf_info.get_max_time(),
-        pm_test          : pmTest1,
-        i2c_lockup_count : 0,
-        ins_error_count  : ins.error_count(),
-        log_dropped      : DataFlash.num_dropped() - perf_info.get_num_dropped(),
-        hal.util->available_memory()
-    };
-    DataFlash.WriteCriticalBlock(&pkt, sizeof(pkt));
-}
-
 // Write an attitude packet
 void Copter::Log_Write_Attitude()
 {
@@ -602,23 +571,6 @@ void Copter::Log_Write_Throw(ThrowModeStage stage, float velocity, float velocit
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
-// Write proximity sensor distances
-void Copter::Log_Write_Proximity()
-{
-#if PROXIMITY_ENABLED == ENABLED
-    DataFlash.Log_Write_Proximity(g2.proximity);
-#endif
-}
-
-// Write beacon position and distances
-void Copter::Log_Write_Beacon()
-{
-    // exit immediately if feature is disabled
-    if (!g2.beacon.enabled()) {
-        return;
-    }
-    DataFlash.Log_Write_Beacon(g2.beacon);
-}
 
 // type and unit information can be found in
 // libraries/DataFlash/Logstructure.h; search for "log_Units" for
@@ -639,8 +591,6 @@ const struct LogStructure Copter::log_structure[] = {
        "NTUN", "Qffffffffff", "TimeUS,DPosX,DPosY,PosX,PosY,DVelX,DVelY,VelX,VelY,DAccX,DAccY", "smmmmnnnnoo", "FBBBBBBBBBB" },
     { LOG_CONTROL_TUNING_MSG, sizeof(log_Control_Tuning),
       "CTUN", "Qffffffeccfhh", "TimeUS,ThI,ABst,ThO,ThH,DAlt,Alt,BAlt,DSAlt,SAlt,TAlt,DCRt,CRt", "s----mmmmmmnn", "F----00BBBBBB" },
-    { LOG_PERFORMANCE_MSG, sizeof(log_Performance), 
-      "PM",  "QHHIhBHII",    "TimeUS,NLon,NLoop,MaxT,PMT,I2CErr,INSErr,LogDrop,Mem", "s-------b", "F-------0" },
     { LOG_MOTBATT_MSG, sizeof(log_MotBatt),
       "MOTB", "Qffff",  "TimeUS,LiftMax,BatVolt,BatRes,ThLimit", "s-vw-", "F-00-" },
     { LOG_EVENT_MSG, sizeof(log_Event),         
@@ -687,10 +637,6 @@ void Copter::log_init(void)
 
 #else // LOGGING_ENABLED
 
-void Copter::Log_Write_AutoTune(uint8_t axis, uint8_t tune_step, float meas_target, \
-                                float meas_min, float meas_max, float new_gain_rp, \
-                                float new_gain_rd, float new_gain_sp, float new_ddt) {}
-void Copter::Log_Write_AutoTuneDetails(float angle_cd, float rate_cds) {}
 void Copter::Log_Write_Nav_Tuning() {}
 void Copter::Log_Write_Control_Tuning() {}
 void Copter::Log_Write_Performance() {}
@@ -712,7 +658,6 @@ void Copter::Log_Write_Precland() {}
 void Copter::Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target) {}
 void Copter::Log_Write_Throw(ThrowModeStage stage, float velocity, float velocity_z, float accel, float ef_accel_z, bool throw_detect, bool attitude_ok, bool height_ok, bool pos_ok) {}
 void Copter::Log_Write_Proximity() {}
-void Copter::Log_Write_Beacon() {}
 void Copter::Log_Write_Vehicle_Startup_Messages() {}
 
 #if FRAME_CONFIG == HELI_FRAME

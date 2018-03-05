@@ -19,6 +19,7 @@
 
 #include "AP_HAL_ChibiOS.h"
 #include "Scheduler.h"
+#include "Util.h"
 
 #include <AP_HAL_ChibiOS/UARTDriver.h>
 #include <AP_HAL_ChibiOS/AnalogIn.h>
@@ -36,6 +37,9 @@ using namespace ChibiOS;
 extern const AP_HAL::HAL& hal;
 THD_WORKING_AREA(_timer_thread_wa, 2048);
 THD_WORKING_AREA(_rcin_thread_wa, 512);
+#ifdef HAL_PWM_ALARM
+THD_WORKING_AREA(_toneAlarm_thread_wa, 512);
+#endif
 THD_WORKING_AREA(_io_thread_wa, 2048);
 THD_WORKING_AREA(_storage_thread_wa, 2048);
 #if HAL_WITH_UAVCAN
@@ -54,7 +58,7 @@ void Scheduler::init()
                      _timer_thread,             /* Thread function.     */
                      this);                     /* Thread parameter.    */
 
-    // setup the timer thread - this will call tasks at 1kHz
+    // setup the uavcan thread - this will call tasks at 1kHz
 #if HAL_WITH_UAVCAN
     _uavcan_thread_ctx = chThdCreateStatic(_uavcan_thread_wa,
                      sizeof(_uavcan_thread_wa),
@@ -69,6 +73,14 @@ void Scheduler::init()
                      _rcin_thread,             /* Thread function.     */
                      this);                     /* Thread parameter.    */
 
+    // the toneAlarm thread runs at a medium priority
+#ifdef HAL_PWM_ALARM
+    _toneAlarm_thread_ctx = chThdCreateStatic(_toneAlarm_thread_wa,
+                     sizeof(_toneAlarm_thread_wa),
+                     APM_TONEALARM_PRIORITY,        /* Initial priority.    */
+                     _toneAlarm_thread,             /* Thread function.     */
+                     this);                    /* Thread parameter.    */
+#endif
     // the IO thread runs at lower priority
     _io_thread_ctx = chThdCreateStatic(_io_thread_wa,
                      sizeof(_io_thread_wa),
@@ -84,12 +96,24 @@ void Scheduler::init()
                      this);                  /* Thread parameter.      */
 }
 
+
 void Scheduler::delay_microseconds(uint16_t usec)
 {
     if (usec == 0) { //chibios faults with 0us sleep
         return;
     }
-    chThdSleepMicroseconds(usec); //Suspends Thread for desired microseconds
+    uint32_t ticks;
+    if (usec >= 4096) {
+        // we need to use 64 bit calculations for tick conversions
+        ticks = US2ST64(usec);
+    } else {
+        ticks = US2ST(usec);
+    }
+    if (ticks == 0) {
+        // calling with ticks == 0 causes a hard fault on ChibiOS
+        ticks = 1;
+    }
+    chThdSleep(ticks); //Suspends Thread for desired microseconds
 }
 
 /*
@@ -120,10 +144,22 @@ static void set_normal_priority()
  */
 void Scheduler::delay_microseconds_boost(uint16_t usec)
 {
-    delay_microseconds(usec); //Suspends Thread for desired microseconds
     set_high_priority();
-    delay_microseconds(APM_MAIN_PRIORITY_BOOST_USEC);
+    delay_microseconds(usec); //Suspends Thread for desired microseconds
     set_normal_priority();
+    _called_boost = true;
+}
+
+/*
+  return true if delay_microseconds_boost() has been called since last check
+ */
+bool Scheduler::check_called_boost(void)
+{
+    if (!_called_boost) {
+        return false;
+    }
+    _called_boost = false;
+    return true;
 }
 
 void Scheduler::delay(uint16_t ms)
@@ -273,7 +309,7 @@ void Scheduler::_timer_thread(void *arg)
 void Scheduler::_uavcan_thread(void *arg)
 {
     Scheduler *sched = (Scheduler *)arg;
-    sched->_rcin_thread_ctx->name = "apm_uavcan";
+    sched->_uavcan_thread_ctx->name = "apm_uavcan";
     while (!sched->_hal_initialized) {
         sched->delay_microseconds(20000);
     }
@@ -300,7 +336,23 @@ void Scheduler::_rcin_thread(void *arg)
         ((RCInput *)hal.rcin)->_timer_tick();
     }
 }
+#ifdef HAL_PWM_ALARM
 
+void Scheduler::_toneAlarm_thread(void *arg)
+{
+    Scheduler *sched = (Scheduler *)arg;
+    sched->_toneAlarm_thread_ctx->name = "toneAlarm";
+    while (!sched->_hal_initialized) {
+        sched->delay_microseconds(20000);
+    }
+    while (true) {
+        sched->delay_microseconds(20000);
+
+        // process tone command
+        Util::from(hal.util)->_toneAlarm_timer_tick();
+    }
+}
+#endif
 void Scheduler::_run_io(void)
 {
     if (_in_io_proc) {
