@@ -526,6 +526,7 @@ void AP_Notify::set_flight_mode_str(const char *str)
 {
     strncpy(_flight_mode_str, str, sizeof(_flight_mode_str));
     _flight_mode_str[sizeof(_flight_mode_str)-1] = 0;
+    _flight_mode_timestamp = AP_HAL::millis();
 }
 
 void AP_Notify::send_text(const char *str)

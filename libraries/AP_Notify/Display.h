@@ -25,16 +25,16 @@ public:
 private:
     void draw_char(uint16_t x, uint16_t y, const char c);
     void draw_text(uint16_t x, uint16_t y, const char *c);
-    void update_all();
-    void update_arm(uint8_t r);
-    void update_prearm(uint8_t r);
-    void update_gps(uint8_t r);
-    void update_gps_sats(uint8_t r);
-    void update_ekf(uint8_t r);
-    void update_battery(uint8_t r);
-    void update_mode(uint8_t r);
-    void update_text(uint8_t r);
-    void update_text_empty(uint8_t r);
+    bool update_all();
+    bool update_arm(uint8_t r, uint8_t c = 0);
+    bool update_prearm(uint8_t r, uint8_t c = 0);
+    bool update_gps(uint8_t r, uint8_t c = 0);
+    bool update_gps_sats(uint8_t r, uint8_t c = 0);
+    bool update_ekf(uint8_t r, uint8_t c = 0);
+    bool update_battery(uint8_t r, uint8_t c = 0);
+    bool update_mode(uint8_t r, uint8_t c = 0);
+    bool update_text(uint8_t r, uint8_t c = 0);
+    bool update_text_empty(uint8_t r, uint8_t c = 0);
 
     Display_Backend *_driver;
 
@@ -47,6 +47,14 @@ private:
 
     //Bitmask of what lines send_text_scripting should override
     uint8_t _send_text_scr_override;
+    // MARCO
+    double _mw_battery_voltage = 255.0;
+    uint32_t _mw_flight_mode = 0;
+    uint32_t _mw_text_updated = 0;
+    uint8_t _mw_armed = 5;
+    uint8_t _mw_gps_status = 10;
+    uint8_t _mw_gps_num_sats = 0;
+    uint8_t _mw_ekf_bad = 5;
 };
 
 #endif  // HAL_DISPLAY_ENABLED
