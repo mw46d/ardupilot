@@ -29,7 +29,8 @@ public:
     enum ArmingMethod {
         NONE = 0,
         RUDDER,
-        MAVLINK
+        MAVLINK,
+        SAFETY_SWITCH  // MARCO
     };
 
     enum ArmingRequired {
@@ -59,6 +60,8 @@ public:
     uint16_t compass_magfield_expected() const;
 
     static const struct AP_Param::GroupInfo        var_info[];
+
+    bool hardware_safety_is_arm(); // MARCO
 
 protected:
     AP_Arming(const AP_AHRS &ahrs_ref, const AP_Baro &baro, Compass &compass,
@@ -98,6 +101,7 @@ protected:
     bool battery_checks(bool report);
 
     bool hardware_safety_check(bool report);
+    void set_hardware_safety_check(AP_HAL::Util::safety_state state); // MARCO
 
     virtual bool board_voltage_checks(bool report);
 

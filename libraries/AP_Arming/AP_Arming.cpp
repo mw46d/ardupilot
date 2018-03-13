@@ -347,10 +347,16 @@ bool AP_Arming::gps_checks(bool report)
     if ((checks_to_perform & ARMING_CHECK_ALL) || (checks_to_perform & ARMING_CHECK_GPS)) {
 
         //GPS OK?
-        if (home_status() == HOME_UNSET ||
-            gps.status() < AP_GPS::GPS_OK_FIX_3D) {
+        if (home_status() == HOME_UNSET) {
             if (report) {
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "PreArm: Bad GPS Position");
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "PreArm: Bad GPS HOME Position");
+            }
+            return false;
+        }
+
+        if (gps.status() < AP_GPS::GPS_OK_FIX_3D) {
+            if (report) {
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "PreArm: Bad GPS Position %d", gps.status());
             }
             return false;
         }
@@ -452,6 +458,21 @@ bool AP_Arming::hardware_safety_check(bool report)
     }
 
     return true;
+}
+
+// MARCO
+bool AP_Arming::hardware_safety_is_arm() {
+    return ((checks_to_perform != ARMING_CHECK_ALL) &&
+            ((checks_to_perform & ARMING_CHECK_SWITCH) == 0) &&
+            hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_NONE);
+}
+
+// MARCO
+void AP_Arming::set_hardware_safety_check(AP_HAL::Util::safety_state state) {
+    if ((checks_to_perform != ARMING_CHECK_ALL) &&
+        ((checks_to_perform & ARMING_CHECK_SWITCH) == 0)) {
+        hal.util->set_safety_switch(state);
+    }
 }
 
 bool AP_Arming::rc_calibration_checks(bool report)
@@ -556,6 +577,7 @@ bool AP_Arming::arm(uint8_t method)
         armed = true;
         arming_method = NONE;
         gcs().send_text(MAV_SEVERITY_INFO, "Throttle armed");
+        set_hardware_safety_check(AP_HAL::Util::SAFETY_ARMED);
         return true;
     }
 
@@ -564,6 +586,7 @@ bool AP_Arming::arm(uint8_t method)
         arming_method = method;
 
         gcs().send_text(MAV_SEVERITY_INFO, "Throttle armed");
+        set_hardware_safety_check(AP_HAL::Util::SAFETY_ARMED);
 
         //TODO: Log motor arming to the dataflash
         //Can't do this from this class until there is a unified logging library
@@ -590,6 +613,7 @@ bool AP_Arming::disarm()
     armed = false;
 
     gcs().send_text(MAV_SEVERITY_INFO, "Throttle disarmed");
+    set_hardware_safety_check(AP_HAL::Util::SAFETY_DISARMED);
 
     //TODO: Log motor disarming to the dataflash
     //Can't do this from this class until there is a unified logging library.
