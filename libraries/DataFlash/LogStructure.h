@@ -1224,7 +1224,7 @@ Format characters in the format string for binary log messages
       "BCL", CURR_CELL_FMT, CURR_CELL_LABELS, CURR_CELL_UNITS, CURR_CELL_MULTS }, \
     { LOG_CURRENT_CELLS2_MSG, sizeof(log_Current_Cells), \
       "BCL2", CURR_CELL_FMT, CURR_CELL_LABELS, CURR_CELL_UNITS, CURR_CELL_MULTS }, \
-	{ LOG_ATTITUDE_MSG, sizeof(log_Attitude),\
+    { LOG_ATTITUDE_MSG, sizeof(log_Attitude),\
       "ATT", "QccccCCCC", "TimeUS,DesRoll,Roll,DesPitch,Pitch,DesYaw,Yaw,ErrRP,ErrYaw", "sddddhhdh", "FBBBBBBBB" }, \
     { LOG_COMPASS_MSG, sizeof(log_Compass), \
       "MAG", MAG_FMT,    MAG_LABELS, MAG_UNITS, MAG_MULTS }, \
@@ -1254,7 +1254,7 @@ Format characters in the format string for binary log messages
     { LOG_POS_MSG, sizeof(log_POS), \
       "POS","QLLfff","TimeUS,Lat,Lng,Alt,RelHomeAlt,RelOriginAlt", "sDUmmm", "FGGBBB" }, \
     { LOG_SIMSTATE_MSG, sizeof(log_AHRS), \
-"SIM","QccCfLLffff","TimeUS,Roll,Pitch,Yaw,Alt,Lat,Lng,Q1,Q2,Q3,Q4", "sddhmDU????", "FBBB0GG????" }, \
+      "SIM","QccCfLLffff","TimeUS,Roll,Pitch,Yaw,Alt,Lat,Lng,Q1,Q2,Q3,Q4", "sddhmDU????", "FBBB0GG????" }, \
     { LOG_NKF1_MSG, sizeof(log_EKF1), \
       "NKF1","QccCfffffffccce","TimeUS,Roll,Pitch,Yaw,VN,VE,VD,dPD,PN,PE,PD,GX,GY,GZ,OH", "sddhnnnnmmmkkkm", "FBBB0000000BBBB" }, \
     { LOG_NKF2_MSG, sizeof(log_NKF2), \
@@ -1406,8 +1406,9 @@ Format characters in the format string for binary log messages
     { LOG_VISUALODOM_MSG, sizeof(log_VisualOdom), \
             "VISO", "Qffffffff", "TimeUS,dt,AngDX,AngDY,AngDZ,PosDX,PosDY,PosDZ,conf", "ssrrrmmm-", "FF000000-" }
 
-// #if SBP_HW_LOGGING
+#if SBP_HW_LOGGING
 #define LOG_SBP_STRUCTURES \
+    , \
     { LOG_MSG_SBPHEALTH, sizeof(log_SbpHealth), \
       "SBPH", "QIII", "TimeUS,CrcError,LastInject,IARhyp", "s---", "F---" }, \
     { LOG_MSG_SBPRAWH, sizeof(log_SbpRAWH), \
@@ -1416,9 +1417,11 @@ Format characters in the format string for binary log messages
       "SBRM", "QQQQQQQQQQQQQQQ", "TimeUS,msg_flag,1,2,3,4,5,6,7,8,9,10,11,12,13", "s??????????????", "F??????????????" }, \
     { LOG_MSG_SBPEVENT, sizeof(log_SbpEvent), \
       "SBRE", "QHIiBB", "TimeUS,GWk,GMS,ns_residual,level,quality", "s?????", "F?????" }
-// #endif
+#else
+#define LOG_SBP_STRUCTURES
+#endif
 
-#define LOG_COMMON_STRUCTURES LOG_BASE_STRUCTURES, LOG_EXTRA_STRUCTURES, LOG_SBP_STRUCTURES
+#define LOG_COMMON_STRUCTURES LOG_BASE_STRUCTURES, LOG_EXTRA_STRUCTURES LOG_SBP_STRUCTURES
 
 // message types 0 to 128 reversed for vehicle specific use
 
@@ -1532,6 +1535,7 @@ enum LogMessages {
     LOG_UNIT_MSG,
     LOG_MULT_MSG,
 
+#if SBP_HW_LOGGING
     LOG_MSG_SBPHEALTH,
     LOG_MSG_SBPLLH,
     LOG_MSG_SBPBASELINE,
@@ -1540,6 +1544,7 @@ enum LogMessages {
     LOG_MSG_SBPRAWH,
     LOG_MSG_SBPRAWM,
     LOG_MSG_SBPEVENT,
+#endif
     LOG_TRIGGER_MSG,
 
     // MARCO LOG_GIMBAL1_MSG,
