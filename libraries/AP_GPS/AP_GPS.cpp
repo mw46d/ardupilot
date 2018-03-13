@@ -1046,7 +1046,28 @@ bool AP_GPS::all_consistent(float &distance) const
     }
 
     // calculate distance
+#ifdef ORIGINAL // MARCO
     distance = location_3d_diff_NED(state[0].location, state[1].location).length();
+#else
+    Location l1 = state[0].location;
+    bool have_one = false;
+
+    for (int i = 0; i < num_instances; i++) {
+        if (state[i].status >= GPS_OK_FIX_2D) {
+            if (have_one) {
+                float d = location_3d_diff_NED(l1, state[i].location).length();
+
+                if (d > distance) {
+                    distance = d;
+                }
+            }
+
+            l1 = state[i].location;
+            have_one = true;
+        }
+    }
+#endif
+
     // success if distance is within 50m
     return (distance < 50);
 }
