@@ -298,6 +298,32 @@ void Rover::Log_Write_WheelEncoder()
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
+// MARCO Lidar
+struct PACKED log_LIDAR {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    int16_t v[14];   // v06 ... v29
+};
+
+// Write a lidar packet
+void Rover::Log_Write_Lidar(Lidar *l) {
+    struct log_LIDAR pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_LIDAR_MSG),
+        time_us        : AP_HAL::micros64(),
+    };
+    int i, j;
+
+    for (i = 6, j = 0; i > -1; i--, j++) {
+        pkt.v[j] = l->ranges[i];
+    }
+
+    for (i = 35; i > 28; i--, j++) {
+        pkt.v[j] = l->ranges[i];
+    }
+
+    DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
+
 // Write proximity sensor distances
 void Rover::Log_Write_Proximity()
 {
@@ -327,6 +353,8 @@ const LogStructure Rover::log_structure[] = {
       "ERR",   "QBB",         "TimeUS,Subsys,ECode", "s--", "F--" },
     { LOG_WHEELENCODER_MSG, sizeof(log_WheelEncoder),
       "WENC",  "Qfbffbf", "TimeUS,Dist0,Qual0,RPM0,Dist1,Qual1,RPM1", "sm-qm-q", "F0--0--" },
+    { LOG_LIDAR_MSG, sizeof(log_LIDAR),
+      "LIDR",  "QHHHHHHHHHHHHHH", "TimeUS,6,5,4,3,2,1,0,35,34,33,32,31,30,29", "suuuuuuuuuuuuuu", "F--------------" }
 };
 
 void Rover::log_init(void)
@@ -361,5 +389,6 @@ void Rover::Log_Write_Error(uint8_t sub_system, uint8_t error_code) {}
 void Rover::Log_Write_Steering() {}
 void Rover::Log_Write_WheelEncoder() {}
 void Rover::Log_Write_Proximity() {}
+void Rover::Log_Write_Lidar(Lidar *l) {}
 
 #endif  // LOGGING_ENABLED

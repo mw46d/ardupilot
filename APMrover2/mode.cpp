@@ -296,6 +296,19 @@ float Mode::calc_reduced_speed_for_turn_or_distance(float desired_speed)
         speed_scaled = constrain_float(speed_scaled, -speed_max, speed_max);
     }
 
+    if (rover.lidar != NULL && rover.lidar->active()) {
+        float s = rover.lidar->check_speed(speed_scaled);
+
+        if (fabsf(s - speed_scaled) > 0.001) {
+            static unsigned long last_log = 0;
+            if (last_log + 1000 < millis()) {
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "MW lidar speed %f -> %f", (double)speed_scaled, (double)s);
+                last_log = millis();
+            }
+            speed_scaled = s;
+        }
+    }
+
     // return minimum speed
     return speed_scaled;
 }
@@ -337,8 +350,12 @@ void Mode::calc_steering_from_lateral_acceleration(float lat_accel, bool reverse
         if (rover.lidar != NULL && rover.lidar->active()) {
             float l = rover.lidar->calc_steering(lat_accel);
 
-            if (l != lat_accel) {
-                gcs().send_text(MAV_SEVERITY_CRITICAL, "MW lidar %f -> %f", lat_accel, l);
+            if (fabsf(l - lat_accel) > 0.001) {
+                static unsigned long last_log = 0;
+                if (last_log + 1000 < millis()) {
+                    gcs().send_text(MAV_SEVERITY_CRITICAL, "MW lidar angle %f -> %f", (double)lat_accel, (double)l);
+                    last_log = millis();
+                }
                 lat_accel = l;
             }
         }

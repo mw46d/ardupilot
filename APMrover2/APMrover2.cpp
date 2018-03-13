@@ -297,6 +297,24 @@ void Rover::one_second_loop(void)
     AP_Notify::flags.pre_arm_check = update_arming_checks();
     // End MARCO
     AP_Notify::flags.pre_arm_gps_check = true;
+
+    if (arming.hardware_safety_is_arm() &&
+        saved_safety_switch_state != hal.util->safety_switch_state()) {
+        saved_safety_switch_state = hal.util->safety_switch_state();
+
+        if (!arming.is_armed() && arming.arming_required() != AP_Arming::NO) {
+            if (saved_safety_switch_state == AP_HAL::Util::SAFETY_ARMED) {
+                arm_motors(AP_Arming::SAFETY_SWITCH);
+            }
+        }
+
+        if (arming.is_armed() && arming.arming_required() != AP_Arming::NO) {
+            if (saved_safety_switch_state != AP_HAL::Util::SAFETY_ARMED) {
+                disarm_motors();
+            }
+        }
+    }
+
     AP_Notify::flags.armed = arming.is_armed() || arming.arming_required() == AP_Arming::NO;
 
     // cope with changes to mavlink system ID

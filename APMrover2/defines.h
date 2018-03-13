@@ -62,6 +62,8 @@ enum mode {
 #define LOG_GUIDEDTARGET_MSG    0x0E
 #define LOG_WHEELENCODER_MSG    0x0F
 #define LOG_ERROR_MSG           0x13
+#define LOG_LIDAR_MSG           0x14
+
 
 #define TYPE_AIRSTART_MSG       0x00
 #define TYPE_GROUNDSTART_MSG    0x01

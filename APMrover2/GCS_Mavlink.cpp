@@ -682,6 +682,7 @@ void GCS_MAVLINK_Rover::handle_lidar_packet(mavlink_message_t *msg)
 
     if (rover.lidar != NULL) {
         rover.lidar->update(m);
+        rover.Log_Write_Lidar(rover.lidar);
     }
 
     // gcs().send_text(MAV_SEVERITY_CRITICAL, "MW handle_lidar_packet %d", m.ranges[0]);

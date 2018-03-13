@@ -442,6 +442,7 @@ private:
     void update_home();
 
     // MARCO
+    int saved_safety_switch_state = AP_HAL::Util::SAFETY_NONE;
     bool update_arming_checks(void);
     MAV_RESULT set_speed(float type, float speed, float thrttle);
     // End MARCO
@@ -514,6 +515,7 @@ private:
     void Log_Read(uint16_t log_num, uint16_t start_page, uint16_t end_page);
     void log_init(void);
     void Log_Write_Vehicle_Startup_Messages();
+    void Log_Write_Lidar(Lidar *l);
 
     // Parameters.cpp
     void load_parameters(void);
