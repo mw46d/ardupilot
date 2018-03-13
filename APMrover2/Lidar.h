@@ -14,6 +14,8 @@ public:
     float check_speed(float s);
     float calc_steering(float v, int round = 0);
 
+    uint16_t ranges[36];
+
 protected:
     class Parameters &g;
     class ParametersG2 &g2;
@@ -28,5 +30,4 @@ private:
     uint16_t angle_increment;  // Angle in centi-degs
     uint16_t min_range;
     uint16_t max_range;
-    uint16_t ranges[36];
 };

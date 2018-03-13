@@ -4,6 +4,7 @@
 Lidar::Lidar() :
     g(rover.g),
     g2(rover.g2),
+    suggested_target_speed(-1.0),
     last_update(0)
 { }
 
@@ -18,6 +19,9 @@ bool Lidar::update(mavlink_angular_distance_sensor_t &m) {
     for (int i = 0; i < 36; i++) {
         if (m.covariances[i] > 0) {
             this->ranges[i] = m.ranges[i];
+        }
+        else {
+            this->ranges[i] = 0;
         }
     }
 
@@ -40,7 +44,7 @@ float Lidar::check_bounds(float v, float max) {
 }
 
 float Lidar::check_speed(float s) {
-    if (this->suggested_target_speed == 0.0) {
+    if (this->suggested_target_speed < 0.0) {
         return s;
     }
 
@@ -64,7 +68,7 @@ float Lidar::calc_steering(float v, int round) {
 
     i = (int)(v * 45.0);
     max_problems = 0;
-    this->suggested_target_speed = 0.0;
+    this->suggested_target_speed = -1.0;
 
     i_array[0] = (360 + 19 - i) / 10 % 36;
     i_array[1] = (360 + 9 - i) / 10 % 36;
@@ -103,6 +107,11 @@ float Lidar::calc_steering(float v, int round) {
     if (this->ranges[order[0]] < 1.5) {
         // Slow down when there are obstacles near by
         this->suggested_target_speed = 1.0;
+    }
+
+    if (this->ranges[order[0]] < 1.0) {
+        // Slow down when there are obstacles near by
+        this->suggested_target_speed = 0.0;
     }
 
     // gcs().send_text(MAV_SEVERITY_CRITICAL, "MW(%d) %.3f %d %d %d %d %d --> %d", round, v, i_array[0], i_array[1], i_array[2], i_array[3], i_array[4], order[0]);
