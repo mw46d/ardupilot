@@ -359,18 +359,30 @@ bool Display::init(void)
 
 void Display::update()
 {
+    bool need_display;
+
     // return immediately if not enabled
     if (!_healthy) {
         return;
     }
 
+    need_display = false;
+
+#ifdef ORIGINAL // MARCO updating at 1 Hz
+#define MW_MULTIPIER 1
+#else
+#define MW_MULTIPIER 2
+#endif
+
     // max update frequency 2Hz
+    // MARCO Switch to 1Hz but also in ARMED
     static uint8_t timer = 0;
-    if (timer++ < 25) {
+    if (timer++ < 25 * MW_MULTIPIER) {
         return;
     }
     timer = 0;
 
+#ifdef ORIGINAL // MARCO For rover, updates make sense even in `flight'
     if (AP_Notify::flags.armed) {
         if (_screenpage != 1) {
             _driver->clear_screen();
@@ -380,26 +392,31 @@ void Display::update()
         }
         return;
     }
+#endif
 
     if (_screenpage != 2) {
         _driver->clear_screen(); //once clear screen when page changed
         _screenpage = 2;
+        need_display = true;
     }
 
-    update_all();
-    _driver->hw_update(); //update at 2 Hz in disarmed mode
-
+    if (update_all() || need_display) {
+        _driver->hw_update(); //update at 2 Hz in disarmed mode
+    }
 }
 
-void Display::update_all()
+bool Display::update_all()
 {
-    update_text(0);
-    update_mode(1);
-    update_battery(2);
-    update_gps(3);
-    //update_gps_sats(4);
-    update_prearm(4);
-    update_ekf(5);
+    bool ret = false;
+
+    ret = update_text(0) || ret;
+    ret = update_mode(1) || ret;
+    ret = update_battery(2) || ret;
+    ret = update_gps(3) || ret;
+    ret = update_prearm(4) || ret;
+    ret = update_ekf(5) || ret;
+
+    return ret;
 }
 
 void Display::draw_text(uint16_t x, uint16_t y, const char* c)
@@ -446,29 +463,51 @@ void Display::draw_char(uint16_t x, uint16_t y, const char c)
     }
 }
 
-void Display::update_arm(uint8_t r)
+bool Display::update_arm(uint8_t r, uint8_t c)
 {
+    if (_mw_armed == AP_Notify::flags.armed) {
+        return false;
+    }
+
     if (AP_Notify::flags.armed) {
-        draw_text(COLUMN(0), ROW(r), ">>>>> ARMED! <<<<<");
+        draw_text(COLUMN(c), ROW(r), ">>>>> ARMED! <<<<<");
     } else {
-        draw_text(COLUMN(0), ROW(r), "     disarmed     ");
+        draw_text(COLUMN(c), ROW(r), "     disarmed     ");
     }
+
+    _mw_armed = AP_Notify::flags.armed;
+    return true;
 }
 
-void Display::update_prearm(uint8_t r)
+bool Display::update_prearm(uint8_t r, uint8_t c)
 {
-    if (AP_Notify::flags.pre_arm_check) {
-        draw_text(COLUMN(0), ROW(r), "Prearm: passed    ");
-    } else {
-        draw_text(COLUMN(0), ROW(r), "Prearm: failed    ");
+    bool ret = update_arm(r, c);
+
+    if (ret || AP_Notify::flags.armed) {
+        return ret;
     }
+
+    if (AP_Notify::flags.pre_arm_check) {
+        draw_text(COLUMN(c), ROW(r), "Prearm: passed    ");
+    }
+    else {
+        draw_text(COLUMN(c), ROW(r), "Prearm: failed    ");
+    }
+
+    // Always force update in disarmed state
+    return true;
 }
 
-void Display::update_gps(uint8_t r)
+bool Display::update_gps(uint8_t r, uint8_t c)
 {
     static const char * gpsfixname[] = {"Other", "NoGPS","NoFix","2D","3D","DGPS", "RTK f", "RTK F"};
     char msg [DISPLAY_MESSAGE_SIZE];
     const char * fixname;
+
+    if (_mw_gps_status == AP_Notify::flags.gps_status && _mw_gps_num_sats == (unsigned)AP_Notify::flags.gps_num_sats) {
+        return false;
+    }
+
     switch  (AP_Notify::flags.gps_status) {
         case AP_GPS::NO_GPS:
             fixname = gpsfixname[1];
@@ -496,64 +535,96 @@ void Display::update_gps(uint8_t r)
             break;
     }
     snprintf(msg, DISPLAY_MESSAGE_SIZE, "GPS:%-5s Sats:%2u", fixname, (unsigned)AP_Notify::flags.gps_num_sats) ;
-    draw_text(COLUMN(0), ROW(r), msg);
+    draw_text(COLUMN(c), ROW(r), msg);
+
+    _mw_gps_status = AP_Notify::flags.gps_status;
+    _mw_gps_num_sats = AP_Notify::flags.gps_num_sats;
+    return true;
 }
 
-void Display::update_gps_sats(uint8_t r)
+bool Display::update_ekf(uint8_t r, uint8_t c)
 {
-    draw_text(COLUMN(0), ROW(r), "Sats:");
-    draw_char(COLUMN(8), ROW(r), (AP_Notify::flags.gps_num_sats / 10) + '0');
-    draw_char(COLUMN(9), ROW(r), (AP_Notify::flags.gps_num_sats % 10) + '0');
-}
+    if (_mw_ekf_bad == AP_Notify::flags.ekf_bad) {
+        return false;
+    }
 
-void Display::update_ekf(uint8_t r)
-{
     if (AP_Notify::flags.ekf_bad) {
-        draw_text(COLUMN(0), ROW(r), "EKF:    fail");
+        draw_text(COLUMN(c), ROW(r), "EKF:    fail");
     } else {
-        draw_text(COLUMN(0), ROW(r), "EKF:    ok  ");
+        draw_text(COLUMN(c), ROW(r), "EKF:    ok  ");
     }
+
+    _mw_ekf_bad = AP_Notify::flags.ekf_bad;
+    return true;
 }
 
-void Display::update_battery(uint8_t r)
+bool Display::update_battery(uint8_t r, uint8_t c)
 {
     char msg [DISPLAY_MESSAGE_SIZE];
+
+    if (_mw_battery_voltage == (double)AP_Notify::flags.battery_voltage) {
+        return false;
+    }
+
     snprintf(msg, DISPLAY_MESSAGE_SIZE, "BAT1: %4.2fV", (double)AP_Notify::flags.battery_voltage) ;
-    draw_text(COLUMN(0), ROW(r), msg);
- }
+    draw_text(COLUMN(c), ROW(r), msg);
 
-void Display::update_mode(uint8_t r)
-{
-    char msg [DISPLAY_MESSAGE_SIZE];
-    if (pNotify->get_flight_mode_str()) {
-        snprintf(msg, DISPLAY_MESSAGE_SIZE, "Mode: %s", pNotify->get_flight_mode_str()) ;
-        draw_text(COLUMN(0), ROW(r), msg);
-    }
+    _mw_battery_voltage = (double)AP_Notify::flags.battery_voltage;
+    return true;
 }
 
-void Display::update_text_empty(uint8_t r)
+bool Display::update_mode(uint8_t r, uint8_t c)
+{
+    char msg [DISPLAY_MESSAGE_SIZE];
+
+    if (_mw_flight_mode == pNotify->_flight_mode_timestamp) {
+        return false;
+    }
+
+    if (pNotify->get_flight_mode_str() == NULL) {
+        _mw_flight_mode = 0;
+        return false;
+    }
+
+    snprintf(msg, DISPLAY_MESSAGE_SIZE, "Mode: %s", pNotify->get_flight_mode_str()) ;
+    draw_text(COLUMN(c), ROW(r), msg);
+
+    _mw_flight_mode = pNotify->_flight_mode_timestamp;
+    return true;
+}
+
+bool Display::update_text_empty(uint8_t r, uint8_t c)
 {
     char msg [DISPLAY_MESSAGE_SIZE] = {};
     memset(msg, ' ', sizeof(msg)-1);
     _movedelay = 0;
     _mstartpos = 0;
-    draw_text(COLUMN(0), ROW(r), msg);
+    draw_text(COLUMN(c), ROW(r), msg);
+
+    return true;
 }
 
-void Display::update_text(uint8_t r)
+bool Display::update_text(uint8_t r, uint8_t c)
 {
     char msg [DISPLAY_MESSAGE_SIZE] = {};
     char txt [NOTIFY_TEXT_BUFFER_SIZE] = {};
 
     const bool text_is_valid = AP_HAL::millis() - pNotify->_send_text_updated_millis < _send_text_valid_millis;
     if (!text_is_valid) {
+        if (_mw_text_updated >= pNotify->_send_text_updated_millis + _send_text_valid_millis) {
+            return false;
+        }
+
         update_text_empty(r);
-        return;
+        _mw_text_updated = AP_HAL::millis();
+
+        return true;
     }
 
+#ifdef ORIGINAL // MARCO
     if (_movedelay > 0) {
         _movedelay--;
-        return;
+        return false;
     }
 
     snprintf(txt, sizeof(txt), "%s", pNotify->get_text());
@@ -571,6 +642,20 @@ void Display::update_text(uint8_t r)
     } else {
         _mstartpos++;
     }
+#else
+    if (_mw_text_updated == pNotify->_send_text_updated_millis) {
+        return false;
+    }
 
-    draw_text(COLUMN(0), ROW(0), msg);
+    uint8_t l = strlen(pNotify->get_text());
+    uint8_t m = sizeof(msg) - 1;
+
+    memset(msg, ' ', m); // leave null termination
+    memcpy(msg, pNotify->get_text(), (l < m ? l : m));
+    _mw_text_updated = pNotify->_send_text_updated_millis;
+#endif
+
+    draw_text(COLUMN(c), ROW(r), msg);
+
+    return true;
  }

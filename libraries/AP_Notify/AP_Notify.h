@@ -50,7 +50,7 @@ public:
     static AP_Notify *instance(void) {
         return _instance;
     }
-    
+
     // Oreo LED Themes
     enum Oreo_LED_Theme {
         OreoLED_Disabled        = 0,    // Disabled the OLED driver entirely
@@ -156,6 +156,7 @@ private:
 
     char _send_text[NOTIFY_TEXT_BUFFER_SIZE];
     uint32_t _send_text_updated_millis; // last time text changed
+    uint32_t _flight_mode_timestamp = 0;
     char _flight_mode_str[5];
 
     static NotifyDevice* _devices[];
