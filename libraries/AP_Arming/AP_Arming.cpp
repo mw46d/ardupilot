@@ -717,6 +717,7 @@ bool AP_Arming::hardware_safety_check(bool report)
     return true;
 }
 
+<<<<<<< HEAD
 #if AP_RC_CHANNEL_ENABLED
 bool AP_Arming::rc_arm_checks(AP_Arming::Method method)
 {
@@ -782,6 +783,21 @@ bool AP_Arming::rc_arm_checks(AP_Arming::Method method)
         }
     }
     return check_passed;
+=======
+// MARCO
+bool AP_Arming::hardware_safety_is_arm() {
+    return ((checks_to_perform != ARMING_CHECK_ALL) &&
+            ((checks_to_perform & ARMING_CHECK_SWITCH) == 0) &&
+            hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_NONE);
+}
+
+// MARCO
+void AP_Arming::set_hardware_safety_check(AP_HAL::Util::safety_state state) {
+    if ((checks_to_perform != ARMING_CHECK_ALL) &&
+        ((checks_to_perform & ARMING_CHECK_SWITCH) == 0)) {
+        hal.util->set_safety_switch(state);
+    }
+>>>>>>> ded38a1d6b (Use the hardware safety switch as arm switch)
 }
 
 bool AP_Arming::rc_calibration_checks(bool report)
@@ -1747,12 +1763,28 @@ bool AP_Arming::arm(AP_Arming::Method method, const bool do_arming_checks)
 
     if ((!do_arming_checks && mandatory_checks(true)) || (pre_arm_checks(true) && arm_checks(method))) {
         armed = true;
+<<<<<<< HEAD
+=======
+        arming_method = NONE;
+        gcs().send_text(MAV_SEVERITY_INFO, "Throttle armed");
+        set_hardware_safety_check(AP_HAL::Util::SAFETY_ARMED);
+        return true;
+    }
+>>>>>>> ded38a1d6b (Use the hardware safety switch as arm switch)
 
         _last_arm_method = method;
 
+<<<<<<< HEAD
 #if HAL_LOGGING_ENABLED
         Log_Write_Arm(!do_arming_checks, method); // note Log_Write_Armed takes forced not do_arming_checks
 #endif
+=======
+        gcs().send_text(MAV_SEVERITY_INFO, "Throttle armed");
+        set_hardware_safety_check(AP_HAL::Util::SAFETY_ARMED);
+
+        //TODO: Log motor arming to the dataflash
+        //Can't do this from this class until there is a unified logging library
+>>>>>>> ded38a1d6b (Use the hardware safety switch as arm switch)
 
     } else {
 #if HAL_LOGGING_ENABLED
@@ -1813,8 +1845,13 @@ bool AP_Arming::disarm(const AP_Arming::Method method, bool do_disarm_checks)
     armed = false;
     _last_disarm_method = method;
 
+<<<<<<< HEAD
 #if HAL_LOGGING_ENABLED
     Log_Write_Disarm(!do_disarm_checks, method);  // Log_Write_Disarm takes "force"
+=======
+    gcs().send_text(MAV_SEVERITY_INFO, "Throttle disarmed");
+    set_hardware_safety_check(AP_HAL::Util::SAFETY_DISARMED);
+>>>>>>> ded38a1d6b (Use the hardware safety switch as arm switch)
 
     check_forced_logging(method);
 #endif

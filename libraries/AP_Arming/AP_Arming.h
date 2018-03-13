@@ -187,6 +187,7 @@ protected:
     bool battery_checks(bool report);
 
     bool hardware_safety_check(bool report);
+    void set_hardware_safety_check(AP_HAL::Util::safety_state state); // MARCO
 
     virtual bool board_voltage_checks(bool report);
 
