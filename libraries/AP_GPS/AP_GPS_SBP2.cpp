@@ -29,6 +29,7 @@
 extern const AP_HAL::HAL& hal;
 
 #define SBP_DEBUGGING 0
+#define SBP_HW_LOGGING 0 // MARCO 1
 #define SBP_INFOREPORTING 1
 
 //INVARIANT: We expect SBP to give us a heartbeat in less than 2 seconds.
@@ -432,6 +433,8 @@ AP_GPS_SBP2::_detect(struct SBP2_detect_state &state, uint8_t data)
 void
 AP_GPS_SBP2::logging_log_full_update()
 {
+#if SBP_HW_LOGGING
+
     if (!should_df_log()) {
       return;
     }
@@ -447,6 +450,7 @@ AP_GPS_SBP2::logging_log_full_update()
         last_iar_num_hypotheses    : 0,
     };
     DataFlash_Class::instance()->WriteBlock(&pkt, sizeof(pkt));
+#endif
 };
 
 void
@@ -454,6 +458,8 @@ AP_GPS_SBP2::logging_log_raw_sbp(uint16_t msg_type,
         uint16_t sender_id,
         uint8_t msg_len,
         uint8_t *msg_buff) {
+#if SBP_HW_LOGGING
+
     if (!should_df_log()) {
       return;
     }
@@ -495,10 +501,13 @@ AP_GPS_SBP2::logging_log_raw_sbp(uint16_t msg_type,
         memcpy(pkt2.data, &msg_buff[48 + i * 104], MIN(msg_len - (48 + i * 104), 104));
         DataFlash_Class::instance()->WriteBlock(&pkt2, sizeof(pkt2));
     }
+#endif
 };
 
 void
 AP_GPS_SBP2::logging_ext_event() {
+#if SBP_HW_LOGGING
+
     if (!should_df_log()) {
       return;
     }
@@ -513,4 +522,6 @@ AP_GPS_SBP2::logging_ext_event() {
         quality            : last_event.flags.quality,
     };
     DataFlash_Class::instance()->WriteBlock(&pkt, sizeof(pkt));
+#endif
 };
+
