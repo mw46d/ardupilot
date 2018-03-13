@@ -96,12 +96,50 @@ enum PX4Util::safety_state PX4Util::safety_switch_state(void)
     return AP_HAL::Util::SAFETY_DISARMED;
 }
 
+// MARCO
+void PX4Util::set_safety_switch(enum PX4Util::safety_state state) {
+    struct safety_s safety;
+
+    if (state == AP_HAL::Util::SAFETY_NONE) {
+        return;
+    }
+
+    if (_safety_handle == -1) {
+        _safety_handle = orb_subscribe(ORB_ID(safety));
+    }
+    if (_safety_handle == -1) {
+        return;
+    }
+
+    if (orb_copy(ORB_ID(safety), _safety_handle, &safety) != OK) {
+        return;
+    }
+    if (!safety.safety_switch_available) {
+        return;
+    }
+
+    if (safety.safety_off == (state == AP_HAL::Util::SAFETY_ARMED)) {
+        return;
+    }
+
+    safety.safety_off = (state == AP_HAL::Util::SAFETY_ARMED);
+    safety.timestamp = hrt_absolute_time();
+
+    if (_safety_handle_pub == nullptr) {
+        _safety_handle_pub = orb_advertise(ORB_ID(safety), &safety);
+    }
+    else {
+        orb_publish(ORB_ID(safety), _safety_handle_pub, &safety);
+    }
+}
+
+
 void PX4Util::set_system_clock(uint64_t time_utc_usec)
 {
     timespec ts;
     ts.tv_sec = time_utc_usec/1000000ULL;
     ts.tv_nsec = (time_utc_usec % 1000000ULL) * 1000ULL;
-    clock_settime(CLOCK_REALTIME, &ts);    
+    clock_settime(CLOCK_REALTIME, &ts);
 }
 
 /*

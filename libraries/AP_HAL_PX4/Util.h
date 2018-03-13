@@ -33,6 +33,7 @@ public:
     bool run_debug_shell(AP_HAL::BetterStream *stream);
 
     enum safety_state safety_switch_state(void);
+    void set_safety_switch(enum safety_state state); // MARCO
 
     /*
       set system clock in UTC microseconds
@@ -54,7 +55,7 @@ public:
     void perf_begin(perf_counter_t ) override;
     void perf_end(perf_counter_t) override;
     void perf_count(perf_counter_t) override;
-    
+
     // create a new semaphore
     AP_HAL::Semaphore *new_semaphore(void) override { return new PX4::Semaphore; }
 
@@ -67,6 +68,7 @@ public:
 
 private:
     int _safety_handle;
+    orb_advert_t _safety_handle_pub;
     PX4::NSHShellStream _shell_stream;
 
     struct {
