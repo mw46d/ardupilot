@@ -94,6 +94,7 @@ public:
       return state of safety switch, if applicable
      */
     virtual enum safety_state safety_switch_state(void) { return SAFETY_NONE; }
+    virtual void set_safety_switch(enum safety_state state) { return; } // MARCO
 
     /*
       set HW RTC in UTC microseconds
