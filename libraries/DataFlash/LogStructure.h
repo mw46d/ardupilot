@@ -609,6 +609,7 @@ struct PACKED log_Cmd {
     float latitude;
     float longitude;
     float altitude;
+    uint8_t frame;
 };
 
 struct PACKED log_Radio {
@@ -1207,13 +1208,13 @@ Format characters in the format string for binary log messages
     { LOG_POWR_MSG, sizeof(log_POWR), \
       "POWR","QffH","TimeUS,Vcc,VServo,Flags", "svv-", "FBB-" },  \
     { LOG_CMD_MSG, sizeof(log_Cmd), \
-      "CMD", "QHHHfffffff","TimeUS,CTot,CNum,CId,Prm1,Prm2,Prm3,Prm4,Lat,Lng,Alt", "s-------DUm", "F-------GG0" }, \
+      "CMD", "QHHHfffffffB","TimeUS,CTot,CNum,CId,Prm1,Prm2,Prm3,Prm4,Lat,Lng,Alt,Frame", "s-------DUm-", "F-------GG0-" }, \
     { LOG_RADIO_MSG, sizeof(log_Radio), \
       "RAD", "QBBBBBHH", "TimeUS,RSSI,RemRSSI,TxBuf,Noise,RemNoise,RxErrors,Fixed", "s-------", "F-------" }, \
     { LOG_CAMERA_MSG, sizeof(log_Camera), \
       "CAM", "QIHLLeeeccC","TimeUS,GPSTime,GPSWeek,Lat,Lng,Alt,RelAlt,GPSAlt,Roll,Pitch,Yaw", "s--DUmmmddd", "F--GGBBBBBB" }, \
     { LOG_TRIGGER_MSG, sizeof(log_Camera), \
-            "TRIG", "QIHLLeeeccC","TimeUS,GPSTime,GPSWeek,Lat,Lng,Alt,RelAlt,GPSAlt,Roll,Pitch,Yaw", "s--DUmmmddd", "F--GGBBBBBB" }, \
+      "TRIG", "QIHLLeeeccC","TimeUS,GPSTime,GPSWeek,Lat,Lng,Alt,RelAlt,GPSAlt,Roll,Pitch,Yaw", "s--DUmmmddd", "F--GGBBBBBB" }, \
     { LOG_ARSP_MSG, sizeof(log_AIRSPEED), "ARSP",  ARSP_FMT, ARSP_LABELS, ARSP_UNITS, ARSP_MULTS }, \
     { LOG_ASP2_MSG, sizeof(log_AIRSPEED), "ASP2",  ARSP_FMT, ARSP_LABELS, ARSP_UNITS, ARSP_MULTS }, \
     { LOG_CURRENT_MSG, sizeof(log_Current), \
@@ -1302,7 +1303,7 @@ Format characters in the format string for binary log messages
     { LOG_XKFD_MSG, sizeof(log_ekfBodyOdomDebug), \
       "XKFD","Qffffff","TimeUS,IX,IY,IZ,IVX,IVY,IVZ", "s------", "F------" }, \
     { LOG_XKV1_MSG, sizeof(log_ekfStateVar), \
-            "XKV1","Qffffffffffff","TimeUS,V00,V01,V02,V03,V04,V05,V06,V07,V08,V09,V10,V11", "s------------", "F------------" }, \
+      "XKV1","Qffffffffffff","TimeUS,V00,V01,V02,V03,V04,V05,V06,V07,V08,V09,V10,V11", "s------------", "F------------" }, \
     { LOG_XKV2_MSG, sizeof(log_ekfStateVar), \
       "XKV2","Qffffffffffff","TimeUS,V12,V13,V14,V15,V16,V17,V18,V19,V20,V21,V22,V23", "s------------", "F------------" }, \
     { LOG_TERRAIN_MSG, sizeof(log_TERRAIN), \
@@ -1402,9 +1403,10 @@ Format characters in the format string for binary log messages
     { LOG_RATE_MSG, sizeof(log_Rate), \
       "RATE", "Qffffffffffff",  "TimeUS,RDes,R,ROut,PDes,P,POut,YDes,Y,YOut,ADes,A,AOut", "skk-kk-kk-oo-", "F?????????BB-" }, \
     { LOG_RALLY_MSG, sizeof(log_Rally), \
-            "RALY", "QBBLLh", "TimeUS,Tot,Seq,Lat,Lng,Alt", "s--DUm", "F--GGB" },  \
+      "RALY", "QBBLLh", "TimeUS,Tot,Seq,Lat,Lng,Alt", "s--DUm", "F--GGB" },  \
     { LOG_VISUALODOM_MSG, sizeof(log_VisualOdom), \
-            "VISO", "Qffffffff", "TimeUS,dt,AngDX,AngDY,AngDZ,PosDX,PosDY,PosDZ,conf", "ssrrrmmm-", "FF000000-" }
+      "VISO", "Qffffffff", "TimeUS,dt,AngDX,AngDY,AngDZ,PosDX,PosDY,PosDZ,conf", "ssrrrmmm-", "FF000000-" }
+
 
 #if SBP_HW_LOGGING
 #define LOG_SBP_STRUCTURES \
@@ -1423,11 +1425,40 @@ Format characters in the format string for binary log messages
 
 #define LOG_COMMON_STRUCTURES LOG_BASE_STRUCTURES, LOG_EXTRA_STRUCTURES LOG_SBP_STRUCTURES
 
-// message types 0 to 128 reversed for vehicle specific use
+// message types 0 to 63 reserved for vehicle specific use
 
 // message types for common messages
-enum LogMessages {
-    LOG_FORMAT_MSG = 128,
+enum LogMessages : uint8_t {
+    LOG_NKF1_MSG = 64,
+    LOG_NKF2_MSG,
+    LOG_NKF3_MSG,
+    LOG_NKF4_MSG,
+    LOG_NKF5_MSG,
+    LOG_NKF6_MSG,
+    LOG_NKF7_MSG,
+    LOG_NKF8_MSG,
+    LOG_NKF9_MSG,
+    LOG_NKF10_MSG,
+    LOG_NKQ1_MSG,
+    LOG_NKQ2_MSG,
+    LOG_XKF1_MSG,
+    LOG_XKF2_MSG,
+    LOG_XKF3_MSG,
+    LOG_XKF4_MSG,
+    LOG_XKF5_MSG,
+    LOG_XKF6_MSG,
+    LOG_XKF7_MSG,
+    LOG_XKF8_MSG,
+    LOG_XKF9_MSG,
+    LOG_XKF10_MSG,
+    LOG_XKQ1_MSG,
+    LOG_XKQ2_MSG,
+    LOG_XKFD_MSG,
+    LOG_XKV1_MSG,
+    LOG_XKV2_MSG,
+
+    LOG_FORMAT_MSG = 128, // this must remain #128
+
     LOG_PARAMETER_MSG,
     LOG_GPS_MSG,
     LOG_GPS2_MSG,
@@ -1503,33 +1534,6 @@ enum LogMessages {
     LOG_GPA4_MSG,
     LOG_RFND_MSG,
     LOG_BAR3_MSG,
-    LOG_NKF1_MSG,
-    LOG_NKF2_MSG,
-    LOG_NKF3_MSG,
-    LOG_NKF4_MSG,
-    LOG_NKF5_MSG,
-    LOG_NKF6_MSG,
-    LOG_NKF7_MSG,
-    LOG_NKF8_MSG,
-    LOG_NKF9_MSG,
-    LOG_NKF10_MSG,
-    LOG_NKQ1_MSG,
-    LOG_NKQ2_MSG,
-    LOG_XKF1_MSG,
-    LOG_XKF2_MSG,
-    LOG_XKF3_MSG,
-    LOG_XKF4_MSG,
-    LOG_XKF5_MSG,
-    LOG_XKF6_MSG,
-    LOG_XKF7_MSG,
-    LOG_XKF8_MSG,
-    LOG_XKF9_MSG,
-    LOG_XKF10_MSG,
-    LOG_XKQ1_MSG,
-    LOG_XKQ2_MSG,
-    LOG_XKFD_MSG,
-    LOG_XKV1_MSG,
-    LOG_XKV2_MSG,
     LOG_DF_MAV_STATS,
     LOG_FORMAT_UNITS_MSG,
     LOG_UNIT_MSG,

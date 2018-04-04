@@ -141,7 +141,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_Mount,             &copter.camera_mount,        update,          50,  75),
 #endif
 #if CAMERA == ENABLED
-    SCHED_TASK_CLASS(AP_Camera,            &copter.camera,              update,          50,  75),
+    SCHED_TASK_CLASS(AP_Camera,            &copter.camera,              update_trigger,  50,  75),
 #endif
 #if LOGGING_ENABLED == ENABLED
     SCHED_TASK(ten_hz_logging_loop,   10,    350),
@@ -151,7 +151,9 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_InertialSensor,    &copter.ins,                 periodic,       400,  50),
     SCHED_TASK_CLASS(AP_Scheduler,         &copter.scheduler,           update_logging, 0.1,  75),
     SCHED_TASK(read_receiver_rssi,    10,     75),
+#if RPM_ENABLED == ENABLED
     SCHED_TASK(rpm_update,            10,    200),
+#endif
     SCHED_TASK(compass_cal_update,   100,    100),
     SCHED_TASK(accel_cal_update,      10,    100),
     SCHED_TASK_CLASS(AP_TempCalibration,   &copter.g2.temp_calibration, update,          10, 100),
@@ -191,6 +193,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #endif
 };
 
+constexpr int8_t Copter::_failsafe_priorities[7];
 
 void Copter::setup()
 {
@@ -297,7 +300,7 @@ void Copter::throttle_loop()
 void Copter::update_batt_compass(void)
 {
     // read battery before compass because it may be used for motor interference compensation
-    read_battery();
+    battery.read();
 
     if(g.compass_enabled) {
         // update compass with throttle value - used for compassmot
@@ -342,10 +345,10 @@ void Copter::ten_hz_logging_loop()
         DataFlash.Log_Write_RCOUT();
     }
     if (should_log(MASK_LOG_NTUN) && (flightmode->requires_GPS() || landing_with_GPS())) {
-        Log_Write_Nav_Tuning();
+        pos_control->write_log();
     }
     if (should_log(MASK_LOG_IMU) || should_log(MASK_LOG_IMU_FAST) || should_log(MASK_LOG_IMU_RAW)) {
-        DataFlash.Log_Write_Vibration(ins);
+        DataFlash.Log_Write_Vibration();
     }
     if (should_log(MASK_LOG_CTUN)) {
         attitude_control->control_monitor_log();
@@ -378,7 +381,7 @@ void Copter::twentyfive_hz_logging()
 
     // log IMU data if we're not already logging at the higher rate
     if (should_log(MASK_LOG_IMU) && !should_log(MASK_LOG_IMU_RAW)) {
-        DataFlash.Log_Write_IMU(ins);
+        DataFlash.Log_Write_IMU();
     }
 #endif
 

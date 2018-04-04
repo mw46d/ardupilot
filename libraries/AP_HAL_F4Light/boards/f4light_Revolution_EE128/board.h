@@ -149,15 +149,11 @@
 #define BOARD_DATAFLASH_PAGES           0x10000
 #define BOARD_DATAFLASH_ERASE_SIZE      (4096)// in bytes
 
-#if 1// use it as FAT and share it via USB
 #define BOARD_DATAFLASH_FATFS
 #define USB_MASSSTORAGE
 #define HAL_BOARD_LOG_DIRECTORY "0:/"
 #define HAL_BOARD_TERRAIN_DIRECTORY "0:/TERRAIN"
 //#define HAL_PARAM_DEFAULTS_PATH "0:/APM/defaults.parm"
-#else
-// old dataflash logs
-#endif
 
 
 #define BOARD_UARTS_LAYOUT 1
@@ -209,7 +205,7 @@
 */
 #define BOARD_HAL_VARINFO \
     AP_GROUPINFO("USB_STORAGE",  30, AP_Param_Helper, _usb_storage, 0), \
-    AP_GROUPINFO("FLEXI_I2C",    30, AP_Param_Helper, _flexi_i2c, 0), 
+    AP_GROUPINFO("FLEXI_I2C",    31, AP_Param_Helper, _flexi_i2c, 0), 
 
 // parameters
 #define BOARD_HAL_PARAMS \

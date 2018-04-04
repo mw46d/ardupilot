@@ -72,6 +72,7 @@
 #define HAL_BOARD_SUBTYPE_CHIBIOS_CRAZYFLIE2    5007
 #define HAL_BOARD_SUBTYPE_CHIBIOS_OMNIBUSF7V2   5008
 #define HAL_BOARD_SUBTYPE_CHIBIOS_GENERIC       5009
+#define HAL_BOARD_SUBTYPE_CHIBIOS_F4BY          5010
 
 /* InertialSensor driver types */
 #define HAL_INS_NONE         0
@@ -141,6 +142,7 @@
 #define HAL_COMPASS_MAG3110            20
 #define HAL_COMPASS_BMM150_I2C         21
 #define HAL_COMPASS_QMC5883L           22
+#define HAL_COMPASS_IST8310            23
 
 /* Heat Types */
 #define HAL_LINUX_HEAT_PWM 1

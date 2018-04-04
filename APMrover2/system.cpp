@@ -80,7 +80,7 @@ void Rover::init_ardupilot()
 
     // setup frsky telemetry
 #if FRSKY_TELEM_ENABLED == ENABLED
-    frsky_telemetry.init(serial_manager, fwver.fw_string, MAV_TYPE_GROUND_ROVER);
+    frsky_telemetry.init(serial_manager, fwver.fw_string, (is_boat() ? MAV_TYPE_SURFACE_BOAT : MAV_TYPE_GROUND_ROVER));
 #endif
 
 #if LOGGING_ENABLED == ENABLED
@@ -103,7 +103,7 @@ void Rover::init_ardupilot()
     init_visual_odom();
 
     // and baro for EKF
-    init_barometer(true);
+    barometer.calibrate();
 
     // Do GPS init
     gps.set_log_gps_bit(MASK_LOG_GPS);
