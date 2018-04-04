@@ -19,9 +19,15 @@ bool Lidar::update(mavlink_angular_distance_sensor_t &m) {
     for (int i = 0; i < 36; i++) {
         if (m.covariances[i] > 0) {
             this->ranges[i] = m.ranges[i];
+            // test
+            m.ranges[i] = this->ranges[i];
+            m.covariances[i] = 5;
         }
         else {
             this->ranges[i] = 0;
+            // test
+            m.ranges[i] = this->ranges[i];
+            m.covariances[i] = 0;
         }
     }
 
@@ -123,14 +129,14 @@ float Lidar::calc_steering(float v, int round) {
             switch (order[0]) {
             case 0:
             case 1:
-                return this->calc_steering(check_bounds(v + 0.333, 1.0), round + 1); // Try 15 deg more
+                return this->calc_steering(v + 0.333 * g.turn_max_g, round + 1); // Try 15 deg more
                 break;
             case 4:
-                return this->calc_steering(check_bounds(v - 0.222, 1.0), round + 1); // Try 10 deg less
+                return this->calc_steering(v - 0.222 * g.turn_max_g, round + 1); // Try 10 deg less
                 break;
             case 2:
             case 3:
-                return this->calc_steering(check_bounds(v + 0.444, 1.0), round + 1); // Try 20 deg more
+                return this->calc_steering(v + 0.444 * g.turn_max_g, round + 1); // Try 20 deg more
                 break;
             }
         }
@@ -138,14 +144,14 @@ float Lidar::calc_steering(float v, int round) {
             switch (order[0]) {
             case 0:
             case 1:
-                return check_bounds(v, 1.0); // Try the original and hope we faind a way out
+                return v; // Try the original and hope we faind a way out
                 break;
             case 4:
-                return this->calc_steering(check_bounds(v - 0.222, 1.0), round + 1); // Try 10 deg less
+                return this->calc_steering(v - 0.222 * g.turn_max_g, round + 1); // Try 10 deg less
                 break;
             case 2:
             case 3:
-                return this->calc_steering(check_bounds(v - 0.444, 1.0), round + 1); // Try 20 deg less
+                return this->calc_steering(v - 0.444 * g.turn_max_g, round + 1); // Try 20 deg less
                 break;
             }
         }
@@ -155,14 +161,14 @@ float Lidar::calc_steering(float v, int round) {
             switch (order[0]) {
             case 4:
             case 3:
-                return this->calc_steering(check_bounds(v - 0.333, 1.0), round + 1); // Try 15 deg more
+                return this->calc_steering(v - 0.333 * g.turn_max_g, round + 1); // Try 15 deg more
                 break;
             case 0:
-                return this->calc_steering(check_bounds(v + 0.222, 1.0), round + 1); // Try 10 deg less
+                return this->calc_steering(v + 0.222 * g.turn_max_g, round + 1); // Try 10 deg less
                 break;
             case 1:
             case 2:
-                return this->calc_steering(check_bounds(v - 0.444, 1.0), round + 1); // Try 20 deg more
+                return this->calc_steering(v - 0.444 * g.turn_max_g, round + 1); // Try 20 deg more
                 break;
             }
         }
@@ -170,14 +176,14 @@ float Lidar::calc_steering(float v, int round) {
             switch (order[0]) {
             case 4:
             case 3:
-                return check_bounds(v, 1.0); // Try the original and hope we faind a way out
+                return v; // Try the original and hope we faind a way out
                 break;
             case 0:
-                return this->calc_steering(check_bounds(v + 0.222, 1.0), round + 1); // Try 10 deg less
+                return this->calc_steering(v + 0.222 * g.turn_max_g, round + 1); // Try 10 deg less
                 break;
             case 1:
             case 2:
-                return this->calc_steering(check_bounds(v + 0.444, 1.0), round + 1); // Try 20 deg less
+                return this->calc_steering(v + 0.444 * g.turn_max_g, round + 1); // Try 20 deg less
                 break;
             }
         }
