@@ -302,7 +302,7 @@ void Rover::Log_Write_WheelEncoder()
 struct PACKED log_LIDAR {
     LOG_PACKET_HEADER;
     uint64_t time_us;
-    int16_t v[14];   // v06 ... v29
+    uint16_t v[14];   // v06 ... v29
 };
 
 // Write a lidar packet
@@ -311,14 +311,9 @@ void Rover::Log_Write_Lidar(Lidar *l) {
         LOG_PACKET_HEADER_INIT(LOG_LIDAR_MSG),
         time_us        : AP_HAL::micros64(),
     };
-    int i, j;
 
-    for (i = 6, j = 0; i > -1; i--, j++) {
-        pkt.v[j] = l->ranges[i];
-    }
-
-    for (i = 35; i > 28; i--, j++) {
-        pkt.v[j] = l->ranges[i];
+    for (int i = 0; i < 14; i++) {
+        pkt.v[i] = l->ranges[(42 - i) % 36 ];
     }
 
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
@@ -354,7 +349,7 @@ const LogStructure Rover::log_structure[] = {
     { LOG_WHEELENCODER_MSG, sizeof(log_WheelEncoder),
       "WENC",  "Qfbffbf", "TimeUS,Dist0,Qual0,RPM0,Dist1,Qual1,RPM1", "sm-qm-q", "F0--0--" },
     { LOG_LIDAR_MSG, sizeof(log_LIDAR),
-      "LIDR",  "QHHHHHHHHHHHHHH", "TimeUS,6,5,4,3,2,1,0,35,34,33,32,31,30,29", "suuuuuuuuuuuuuu", "F--------------" }
+      "LIDR",  "QHHHHHHHHHHHHHH", "TimeUS,R6,R5,R4,R3,R2,R1,R0,R35,R34,R33,R32,R31,R30,R29", "smmmmmmmmmmmmmm", "FBBBBBBBBBBBBBB" }
 };
 
 void Rover::log_init(void)

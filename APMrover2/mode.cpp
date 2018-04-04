@@ -353,7 +353,7 @@ void Mode::calc_steering_from_lateral_acceleration(float lat_accel, bool reverse
             if (fabsf(l - lat_accel) > 0.001) {
                 static unsigned long last_log = 0;
                 if (last_log + 1000 < millis()) {
-                    gcs().send_text(MAV_SEVERITY_CRITICAL, "MW lidar angle %f -> %f", (double)lat_accel, (double)l);
+                    gcs().send_text(MAV_SEVERITY_CRITICAL, "MW lidar lat_accel %f -> %f", (double)lat_accel, (double)l);
                     last_log = millis();
                 }
                 lat_accel = l;

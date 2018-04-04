@@ -37,5 +37,5 @@ private:
     bool try_send_message(enum ap_message id) override;
 
     // MARCO
-    void handle_lidar_packet(mavlink_message_t *msg);
+    bool handle_lidar_packet(mavlink_message_t *msg);
 };

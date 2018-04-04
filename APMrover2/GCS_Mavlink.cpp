@@ -675,7 +675,7 @@ void GCS_MAVLINK_Rover::handle_change_alt_request(AP_Mission::Mission_Command &c
     // nothing to do
 }
 
-void GCS_MAVLINK_Rover::handle_lidar_packet(mavlink_message_t *msg)
+bool GCS_MAVLINK_Rover::handle_lidar_packet(mavlink_message_t *msg)
 {
     mavlink_angular_distance_sensor_t m;
     mavlink_msg_angular_distance_sensor_decode(msg, &m);
@@ -683,9 +683,14 @@ void GCS_MAVLINK_Rover::handle_lidar_packet(mavlink_message_t *msg)
     if (rover.lidar != NULL) {
         rover.lidar->update(m);
         rover.Log_Write_Lidar(rover.lidar);
+
+        CHECK_PAYLOAD_SIZE(ANGULAR_DISTANCE_SENSOR);
+        mavlink_msg_angular_distance_sensor_send_struct(chan, &m);
     }
 
     // gcs().send_text(MAV_SEVERITY_CRITICAL, "MW handle_lidar_packet %d", m.ranges[0]);
+
+    return true;
 }
 
 void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
