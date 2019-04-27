@@ -28,6 +28,10 @@ bool Rover::start_command(const AP_Mission::Mission_Command& cmd)
         do_nav_wp(cmd, false);
         break;
 
+    case MAV_CMD_NAV_LAND:              // LAND to Waypoint
+        do_nav_wp(cmd, true);
+        break;
+
     case MAV_CMD_NAV_RETURN_TO_LAUNCH:
         do_RTL();
         break;

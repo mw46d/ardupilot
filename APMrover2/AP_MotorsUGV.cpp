@@ -470,7 +470,7 @@ void AP_MotorsUGV::output_throttle(SRV_Channel::Aux_servo_function_t function, f
 // slew limit throttle for one iteration
 void AP_MotorsUGV::slew_limit_throttle(float dt)
 {
-    if (_slew_rate > 0) {
+    if (_slew_rate > 0 && rover.is_autopilot_mode()) {
         // slew throttle
         const float throttle_change_max = MAX(1.0f, (float)_slew_rate * dt);
         if (_throttle > _throttle_prev + throttle_change_max) {

@@ -597,6 +597,8 @@ public:
     bool mavlink_motor_test_check(mavlink_channel_t chan, bool check_rc, uint8_t motor_seq, uint8_t throttle_type, int16_t throttle_value);
     MAV_RESULT mavlink_motor_test_start(mavlink_channel_t chan, uint8_t motor_seq, uint8_t throttle_type, int16_t throttle_value, float timeout_sec);
     void motor_test_stop();
+
+    bool is_autopilot_mode() { return control_mode->is_autopilot_mode(); } // MARCO
 };
 
 extern const AP_HAL::HAL& hal;

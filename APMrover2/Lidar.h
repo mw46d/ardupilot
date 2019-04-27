@@ -24,7 +24,10 @@ private:
     float check_bounds(float v, float max);
 
     float suggested_target_speed;
+    float avoid_angle;
     uint32_t last_update;
+    uint32_t detected_time_ms;
+    uint32_t straight_time_ms;
     uint16_t start_angle;      // Angle in centi-degs
     uint16_t end_angle;        // Angle in centi-degs
     uint16_t angle_increment;  // Angle in centi-degs

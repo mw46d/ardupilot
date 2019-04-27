@@ -307,16 +307,18 @@ struct PACKED log_LIDAR {
 
 // Write a lidar packet
 void Rover::Log_Write_Lidar(Lidar *l) {
-    struct log_LIDAR pkt = {
-        LOG_PACKET_HEADER_INIT(LOG_LIDAR_MSG),
-        time_us        : AP_HAL::micros64(),
-    };
+    if (lidar != NULL) {
+        struct log_LIDAR pkt = {
+            LOG_PACKET_HEADER_INIT(LOG_LIDAR_MSG),
+            time_us        : AP_HAL::micros64(),
+        };
 
-    for (int i = 0; i < 14; i++) {
-        pkt.v[i] = l->ranges[(42 - i) % 36 ];
+        for (int i = 0; i < 14; i++) {
+            pkt.v[i] = l->ranges[(42 - i) % 36 ];
+        }
+
+        DataFlash.WriteBlock(&pkt, sizeof(pkt));
     }
-
-    DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
 // Write proximity sensor distances
