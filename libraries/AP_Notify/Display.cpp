@@ -613,10 +613,6 @@ bool Display::update_ekf(uint8_t r, uint8_t c)
     return true;
 }
 
-    AP_BattMonitor &battery = AP::battery();
-    uint8_t pct;
-    draw_text(COLUMN(0), ROW(r), msg);
-}
 #if AP_BATTERY_ENABLED
 bool Display::update_battery(uint8_t r, uint8_t c)
 {

@@ -154,6 +154,8 @@ public:
     static bool method_is_GCS(Method method) {
         return (method == Method::MAVLINK || method == Method::DDS);
     }
+    bool hardware_safety_is_arm(); // MARCO
+
 protected:
 
     // Parameters
